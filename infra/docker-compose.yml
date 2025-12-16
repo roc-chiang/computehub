@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_DB: computehub
+      POSTGRES_USER: ch_user
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - computehub-net
+
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - computehub-net
+
+  minio:
+    image: minio/minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - computehub-net
+
+  control-plane:
+    build: ../services/control-plane
+    restart: always
+    env_file: ../.env
+    volumes:
+      - ../services/control-plane:/app
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    ports:
+      - "8000:8000"
+    networks:
+      - computehub-net
+
+  worker:
+    build: ../services/control-plane
+    restart: always
+    command: ["python", "app/workers/worker.py"]
+    env_file: ../.env
+    volumes:
+      - ../services/control-plane:/app
+    depends_on:
+      - redis
+      - postgres
+      - minio
+    networks:
+      - computehub-net
+
+  caddy:
+    image: caddy:2
+    restart: always
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - computehub-net
+
+volumes:
+  db_data:
+  minio_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  computehub-net:
+    driver: bridge

@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic-settings
+sqlmodel
+psycopg2-binary
+redis
+rq
+requests
+httpx
+asyncssh
+python-telegram-bot
+aiosmtplib
+jinja2

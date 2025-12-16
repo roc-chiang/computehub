@@ -1,0 +1,17 @@
+{
+    # Global options
+    email your-email@example.com
+}
+
+:80 {
+    reverse_proxy /api/* control-plane:8000
+    
+    # For now, we'll just proxy everything else to the Next.js dev server if running locally,
+    # or serve static files if built. 
+    # In this dev setup, we might want to proxy to the host machine's Next.js port if running outside docker,
+    # or to a 'web' container if we dockerize it.
+    # For MVP dev, let's assume we access Next.js directly on localhost:3000 and API on localhost:8000/api
+    # But to simulate prod, we can proxy.
+    
+    # reverse_proxy * host.docker.internal:3000
+}

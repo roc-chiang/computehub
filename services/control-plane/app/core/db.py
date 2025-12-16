@@ -1,0 +1,25 @@
+from sqlmodel import SQLModel, create_engine, Session
+from app.core.config import settings
+from app.core.models import (
+    User, Deployment, TaskLog, Usage, DeploymentTemplate, 
+    UserSubscription, SubscriptionEvent,
+    NotificationSettings, NotificationHistory  # Notification models
+)
+
+# Construct Database URL
+if settings.DATABASE_URL:
+    DATABASE_URL = settings.DATABASE_URL
+else:
+    DATABASE_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_SERVER}/{settings.POSTGRES_DB}"
+
+if "sqlite" in DATABASE_URL:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=True)
+else:
+    engine = create_engine(DATABASE_URL, echo=True)
+
+def init_db():
+    SQLModel.metadata.create_all(engine)
+
+def get_session():
+    with Session(engine) as session:
+        yield session

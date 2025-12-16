@@ -1,0 +1,470 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+from typing import List
+
+from app.core.db import get_session
+from app.core.models import Deployment, User, DeploymentStatus, ActivityLog, NotificationEventType
+from app.schemas.deployment import DeploymentCreate, DeploymentRead
+from app.core.provider_manager import ProviderManager
+from app.services.notification_service import get_notification_service
+
+router = APIRouter()
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.core.auth import verify_token
+
+security = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: Session = Depends(get_session)
+) -> User:
+    token = credentials.credentials
+    payload = verify_token(token, session)
+    
+    clerk_id = payload.get("sub")
+    if not clerk_id:
+        raise HTTPException(status_code=401, detail="Invalid token: missing sub")
+        
+    # Lazy User Creation / Sync
+    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
+    
+    if not user:
+        email = payload.get("email")
+        if not email:
+            email = f"{clerk_id}@clerk.user" 
+            
+        existing_email_user = session.exec(select(User).where(User.email == email)).first()
+        if existing_email_user:
+            existing_email_user.clerk_id = clerk_id
+            existing_email_user.auth_provider = "clerk"
+            session.add(existing_email_user)
+            session.commit()
+            session.refresh(existing_email_user)
+            return existing_email_user
+        
+        user = User(
+            email=email,
+            clerk_id=clerk_id,
+            auth_provider="clerk",
+            plan="free"
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        
+    return user
+
+@router.post("/", response_model=DeploymentRead)
+async def create_deployment(
+    deployment_in: DeploymentCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    concrete_provider = ProviderManager.resolve_provider(deployment_in.provider, session)
+    print(f"[DEBUG] Resolved provider {deployment_in.provider} -> {concrete_provider}")
+
+    # Check if user has a provider binding for this provider
+    from app.core.models import UserProviderBinding
+    from app.core.encryption import get_encryption
+    
+    binding = session.exec(
+        select(UserProviderBinding).where(
+            UserProviderBinding.user_id == current_user.clerk_id,
+            UserProviderBinding.provider_type == concrete_provider,
+            UserProviderBinding.is_active == True
+        )
+    ).first()
+    
+    if not binding:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "provider_not_connected",
+                "message": f"Please connect your {concrete_provider} account in Settings to create deployments",
+                "provider": concrete_provider,
+                "settings_url": "/settings?tab=providers"
+            }
+        )
+    
+    # Decrypt user's API key
+    encryption = get_encryption()
+    user_api_key = encryption.decrypt(binding.api_key_encrypted)
+    print(f"[DEBUG] Using user's API key for {concrete_provider}")
+
+    deployment = Deployment(
+        user_id=current_user.id,
+        name=deployment_in.name,
+        provider=concrete_provider,
+        gpu_type=deployment_in.gpu_type,
+        gpu_count=deployment_in.gpu_count,
+        image=deployment_in.image,
+        status=DeploymentStatus.CREATING
+    )
+    session.add(deployment)
+    session.commit()
+    session.refresh(deployment)
+
+    try:
+        # Pass user's API key to adapter
+        adapter = ProviderManager.get_adapter(deployment.provider, session, user_api_key=user_api_key)
+        result = await adapter.create_instance(
+            deployment_id=str(deployment.id),
+            gpu_type=deployment.gpu_type,
+            image=deployment.image
+        )
+        
+        deployment.instance_id = result.get("instance_id")
+        deployment.status = result.get("status", DeploymentStatus.CREATING)
+        session.add(deployment)
+        session.commit()
+        session.refresh(deployment)
+        
+        # Send success notification
+        try:
+            notification_service = get_notification_service(session)
+            await notification_service.send_notification(
+                user_id=current_user.clerk_id,
+                event_type=NotificationEventType.DEPLOYMENT_SUCCESS,
+                title=f"Deployment Created: {deployment.name}",
+                message=f"Successfully created deployment '{deployment.name}' on {deployment.provider} with {deployment.gpu_type}."
+            )
+        except Exception as notif_error:
+            print(f"[WARNING] Failed to send notification: {str(notif_error)}")
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to create instance: {str(e)}")
+        print(f"[ERROR] Exception type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        deployment.status = DeploymentStatus.ERROR
+        session.add(deployment)
+        session.commit()
+        
+        # Send failure notification
+        try:
+            notification_service = get_notification_service(session)
+            await notification_service.send_notification(
+                user_id=current_user.clerk_id,
+                event_type=NotificationEventType.DEPLOYMENT_FAILURE,
+                title="Deployment Creation Failed",
+                message=f"Failed to create deployment '{deployment_in.name}': {str(e)}"
+            )
+        except Exception as notif_error:
+            print(f"[WARNING] Failed to send notification: {str(notif_error)}")
+        
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return deployment
+
+@router.get("/", response_model=List[DeploymentRead])
+async def list_deployments(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    deployments = session.exec(select(Deployment).where(Deployment.user_id == current_user.id)).all()
+    
+    updated_deployments = []
+    for deployment in deployments:
+        if deployment.status in [DeploymentStatus.CREATING, DeploymentStatus.RUNNING] and deployment.instance_id:
+            try:
+                adapter = ProviderManager.get_adapter(deployment.provider, session)
+                print(f"[DEBUG] Syncing status for deployment {deployment.id}, instance {deployment.instance_id}")
+                status_info = await adapter.get_status(deployment.instance_id)
+                print(f"[DEBUG] Got status: {status_info}")
+                
+                new_status = status_info.get("status")
+                new_endpoint = status_info.get("endpoint")
+                new_ssh = status_info.get("ssh_connection_string")
+                
+                deployment.uptime_seconds = status_info.get("uptime_seconds")
+                if status_info.get("vcpu_count"):
+                    deployment.vcpu_count = status_info.get("vcpu_count")
+                if status_info.get("ram_gb"):
+                    deployment.ram_gb = status_info.get("ram_gb")
+                if status_info.get("storage_gb"):
+                    deployment.storage_gb = status_info.get("storage_gb")
+                
+                if status_info.get("gpu_utilization") is not None:
+                    deployment.gpu_utilization = status_info.get("gpu_utilization")
+                if status_info.get("gpu_memory_utilization") is not None:
+                    deployment.gpu_memory_utilization = status_info.get("gpu_memory_utilization")
+                
+                updated = False
+                if new_status and new_status != deployment.status:
+                    print(f"[DEBUG] Status changed: {deployment.status} -> {new_status}")
+                    deployment.status = new_status
+                    updated = True
+                if new_endpoint and new_endpoint != deployment.endpoint_url:
+                    print(f"[DEBUG] Endpoint updated: {new_endpoint}")
+                    deployment.endpoint_url = new_endpoint
+                    updated = True
+                if new_ssh and new_ssh != deployment.ssh_connection_string:
+                    deployment.ssh_connection_string = new_ssh
+                    updated = True
+                
+                updated = True
+                    
+                if updated:
+                    session.add(deployment)
+                    session.commit()
+                    session.refresh(deployment)
+            except Exception as e:
+                print(f"[ERROR] Failed to sync status: {str(e)}")
+                pass
+        updated_deployments.append(deployment)
+        
+    return updated_deployments
+
+@router.get("/{deployment_id}", response_model=DeploymentRead)
+async def get_deployment(
+    deployment_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    if deployment.status not in [DeploymentStatus.DELETED, DeploymentStatus.ERROR] and deployment.instance_id:
+        try:
+            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            status_info = await adapter.get_status(deployment.instance_id)
+            
+            new_status = status_info.get("status")
+            new_endpoint = status_info.get("endpoint")
+            new_ssh = status_info.get("ssh_connection_string")
+            
+            deployment.uptime_seconds = status_info.get("uptime_seconds")
+            if status_info.get("vcpu_count"):
+                deployment.vcpu_count = status_info.get("vcpu_count")
+            if status_info.get("ram_gb"):
+                deployment.ram_gb = status_info.get("ram_gb")
+            if status_info.get("storage_gb"):
+                deployment.storage_gb = status_info.get("storage_gb")
+            
+            if status_info.get("gpu_utilization") is not None:
+                deployment.gpu_utilization = status_info.get("gpu_utilization")
+            if status_info.get("gpu_memory_utilization") is not None:
+                deployment.gpu_memory_utilization = status_info.get("gpu_memory_utilization")
+            
+            updated = False
+            if new_status and new_status != deployment.status:
+                deployment.status = new_status
+                updated = True
+            if new_endpoint and new_endpoint != deployment.endpoint_url:
+                deployment.endpoint_url = new_endpoint
+                updated = True
+            if new_ssh and new_ssh != deployment.ssh_connection_string:
+                deployment.ssh_connection_string = new_ssh
+                updated = True
+            
+            updated = True
+                
+            if updated:
+                session.add(deployment)
+                session.commit()
+                session.refresh(deployment)
+        except Exception:
+            pass
+
+    return deployment
+
+@router.delete("/{deployment_id}")
+async def delete_deployment(
+    deployment_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    deployment_name = deployment.name
+
+    if deployment.instance_id:
+        try:
+            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            await adapter.delete_instance(deployment.instance_id)
+        except Exception:
+            pass
+
+    deployment.status = DeploymentStatus.DELETED
+    session.add(deployment)
+    session.commit()
+    
+    # Send deletion notification
+    try:
+        notification_service = get_notification_service(session)
+        await notification_service.send_notification(
+            user_id=current_user.clerk_id,
+            event_type=NotificationEventType.DEPLOYMENT_SUCCESS,
+            title=f"Deployment Deleted: {deployment_name}",
+            message=f"Deployment '{deployment_name}' has been successfully deleted."
+        )
+    except Exception as notif_error:
+        print(f"[WARNING] Failed to send notification: {str(notif_error)}")
+    
+    return {"ok": True}
+
+@router.get("/{deployment_id}/activity")
+async def get_deployment_activity(
+    deployment_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """获取部署实例的操作日志"""
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    statement = select(ActivityLog).where(ActivityLog.deployment_id == deployment_id).order_by(ActivityLog.created_at.desc()).limit(50)
+    results = session.exec(statement)
+    return results.all()
+
+from app.services.ssh_service import ssh_service
+
+@router.get("/{deployment_id}/logs")
+async def get_deployment_logs(
+    deployment_id: int,
+    lines: int = 100,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    if not deployment.ssh_connection_string:
+        return {"logs": "SSH connection string not available. Is the instance running?"}
+        
+    try:
+        parts = deployment.ssh_connection_string.split()
+        user_host = parts[1]
+        username, host = user_host.split('@')
+        port = int(parts[3])
+        
+        logs = await ssh_service.get_logs(
+            host=host,
+            port=port,
+            username=username,
+            password=deployment.ssh_password,
+            lines=lines
+        )
+        
+        return {"logs": logs}
+    except Exception as e:
+        return {"logs": f"Failed to parse connection details or fetch logs: {str(e)}"}
+
+@router.get("/{deployment_id}/usage-stats")
+async def get_deployment_usage_stats(
+    deployment_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """获取部署实例的使用统计和成本估算"""
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    # Calculate GPU hours from uptime
+    uptime_seconds = deployment.uptime_seconds or 0
+    gpu_hours = uptime_seconds / 3600.0
+    total_gpu_hours = gpu_hours * deployment.gpu_count
+    
+    # Cost estimation (example rates, should be configurable)
+    # Different GPU types have different costs
+    cost_per_gpu_hour = 0.50  # Default rate
+    
+    # You could add GPU-specific pricing here
+    gpu_pricing = {
+        "RTX 4090": 0.69,
+        "A100": 1.89,
+        "H100": 3.99,
+        "RTX 3090": 0.49,
+    }
+    
+    # Try to match GPU type
+    for gpu_name, price in gpu_pricing.items():
+        if gpu_name.lower() in deployment.gpu_type.lower():
+            cost_per_gpu_hour = price
+            break
+    
+    estimated_cost = total_gpu_hours * cost_per_gpu_hour
+    cost_per_hour = deployment.gpu_count * cost_per_gpu_hour
+    
+    return {
+        "uptime_seconds": uptime_seconds,
+        "uptime_hours": round(gpu_hours, 2),
+        "gpu_count": deployment.gpu_count,
+        "gpu_type": deployment.gpu_type,
+        "total_gpu_hours": round(total_gpu_hours, 2),
+        "cost_per_gpu_hour": cost_per_gpu_hour,
+        "cost_per_hour": round(cost_per_hour, 2),
+        "estimated_cost_usd": round(estimated_cost, 2),
+        "status": deployment.status
+    }
+
+@router.get("/{deployment_id}/files")
+async def get_deployment_files(
+    deployment_id: int,
+    path: str = "/workspace",
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """获取部署实例的文件列表"""
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    if not deployment.ssh_connection_string:
+        raise HTTPException(status_code=400, detail="SSH connection not available")
+        
+    try:
+        parts = deployment.ssh_connection_string.split()
+        user_host = parts[1]
+        username, host = user_host.split('@')
+        port = int(parts[3])
+        
+        files = await ssh_service.list_files(
+            host=host,
+            port=port,
+            username=username,
+            path=path,
+            password=deployment.ssh_password
+        )
+        return files
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
+
+@router.get("/{deployment_id}/files/content")
+async def get_deployment_file_content(
+    deployment_id: int,
+    path: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """获取部署实例的文件内容"""
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    if not deployment.ssh_connection_string:
+        raise HTTPException(status_code=400, detail="SSH connection not available")
+        
+    try:
+        parts = deployment.ssh_connection_string.split()
+        user_host = parts[1]
+        username, host = user_host.split('@')
+        port = int(parts[3])
+        
+        content = await ssh_service.read_file(
+            host=host,
+            port=port,
+            username=username,
+            path=path,
+            password=deployment.ssh_password
+        )
+        return {"content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
