@@ -1,0 +1,310 @@
+@import '../styles/animations.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ===== 新设计系统 - 乳白色系 + 科技蓝紫 ===== */
+
+    /* 背景色 */
+    --background: 30 8% 96%;
+    /* #F5F3EF - 主背景（乳白色） */
+    --background-secondary: 30 12% 90%;
+    /* #EAE5DD - 次级背景 */
+
+    /* 文字色 */
+    --foreground: 220 25% 15%;
+    /* #1F2430 - 主文字（深灰蓝） */
+    --foreground-secondary: 220 9% 46%;
+    /* #6B7280 - 次级文字 */
+
+    /* 品牌色 - 科技蓝紫 */
+    --primary: 274 88% 48%;
+    /* #7C14E3 - 主品牌色 */
+    --primary-foreground: 0 0% 100%;
+    /* 白色文字 */
+    --primary-dark: 274 78% 28%;
+    /* #3B0F70 - 品牌深色 */
+    --primary-light: 280 30% 88%;
+    /* #E2CFEC - 浅品牌色 */
+
+    /* 次级色 */
+    --secondary: 30 12% 90%;
+    /* #EAE5DD - 次级背景 */
+    --secondary-foreground: 220 25% 15%;
+    /* #1F2430 - 深灰蓝 */
+
+    /* 边框和分割线 */
+    --border: 30 15% 83%;
+    /* #D5D0C6 - 分割线/描边 */
+    --input: 30 15% 83%;
+    /* #D5D0C6 - 输入框边框 */
+    --ring: 274 88% 48%;
+    /* #7C14E3 - 焦点环 */
+
+    /* 卡片 */
+    --card: 30 12% 90%;
+    /* #EAE5DD - 卡片背景 */
+    --card-foreground: 220 25% 15%;
+    /* #1F2430 - 卡片文字 */
+
+    /* 弹出层 */
+    --popover: 30 12% 90%;
+    /* #EAE5DD */
+    --popover-foreground: 220 25% 15%;
+    /* #1F2430 */
+
+    /* 静音色 */
+    --muted: 30 12% 90%;
+    /* #EAE5DD */
+    --muted-foreground: 220 9% 46%;
+    /* #6B7280 */
+
+    /* 强调色 */
+    --accent: 30 12% 90%;
+    /* #EAE5DD */
+    --accent-foreground: 220 25% 15%;
+    /* #1F2430 */
+
+    /* 辅助/强调色 */
+    --accent-warm: 43 82% 76%;
+    /* #F4D58D - 辅助暖色 */
+    --success: 155 51% 48%;
+    /* #3BAF7A - 成功色 */
+    --destructive: 356 98% 38%;
+    /* #BF0603 - 错误/警告色 */
+    --destructive-foreground: 0 0% 100%;
+    /* 白色文字 */
+
+    /* 圆角 */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Mobile-first responsive utilities */
+@layer utilities {
+
+  /* Touch-friendly button sizes */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Mobile-optimized spacing */
+  .mobile-padding {
+    @apply px-4 py-3 md:px-6 md:py-4;
+  }
+
+  .mobile-gap {
+    @apply gap-3 md:gap-4 lg:gap-6;
+  }
+
+  /* Responsive text sizes */
+  .responsive-heading {
+    @apply text-2xl md:text-3xl lg:text-4xl;
+  }
+
+  .responsive-subheading {
+    @apply text-lg md:text-xl lg:text-2xl;
+  }
+
+  .responsive-body {
+    @apply text-sm md:text-base;
+  }
+
+  /* Mobile navigation spacing */
+  .mobile-nav-offset {
+    @apply pt-16 lg:pt-0 lg:pl-64;
+  }
+
+  /* Responsive grid */
+  .responsive-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+
+  /* Mobile-friendly card */
+  .mobile-card {
+    @apply p-4 md:p-6;
+  }
+
+  /* Hide on mobile, show on desktop */
+  .desktop-only {
+    @apply hidden lg:block;
+  }
+
+  /* Show on mobile, hide on desktop */
+  .mobile-only {
+    @apply block lg:hidden;
+  }
+
+  /* Responsive dialog */
+  .responsive-dialog {
+    @apply w-full max-w-lg mx-4 md:mx-auto;
+  }
+
+  /* Mobile-optimized form */
+  .mobile-form-field {
+    @apply space-y-2;
+  }
+
+  .mobile-form-label {
+    @apply text-sm font-medium;
+  }
+
+  .mobile-form-input {
+    @apply h-11 md:h-10;
+  }
+
+  /* Responsive container */
+  .responsive-container {
+    @apply container mx-auto px-4 md:px-6 lg:px-8;
+  }
+
+  /* Mobile-friendly table */
+  .mobile-table-scroll {
+    @apply overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0;
+  }
+
+  /* Responsive flex */
+  .responsive-flex {
+    @apply flex flex-col md:flex-row;
+  }
+
+  .responsive-flex-reverse {
+    @apply flex flex-col-reverse md:flex-row;
+  }
+
+  /* Mobile stack */
+  .mobile-stack {
+    @apply flex flex-col space-y-3 md:flex-row md:space-y-0 md:space-x-3;
+  }
+
+  /* Responsive aspect ratio */
+  .responsive-aspect {
+    @apply aspect-square md:aspect-video;
+  }
+
+  /* Touch feedback */
+  .touch-feedback {
+    @apply active:scale-95 transition-transform;
+  }
+
+  /* Mobile-safe z-index */
+  .mobile-overlay {
+    @apply z-40 md:z-50;
+  }
+
+  .mobile-modal {
+    @apply z-50 md:z-[100];
+  }
+
+  /* Responsive max-width */
+  .responsive-max-w {
+    @apply max-w-full md:max-w-2xl lg:max-w-4xl xl:max-w-6xl;
+  }
+}
+
+/* ===== 首页专用字体工具类 ===== */
+@layer utilities {
+
+  /* 首页标题 - 桌面端 */
+  .homepage-h1 {
+    @apply text-[52px] leading-[1.2] font-bold tracking-tight;
+  }
+
+  .homepage-h2 {
+    @apply text-[32px] leading-[1.2] font-semibold tracking-tight;
+  }
+
+  .homepage-h3 {
+    @apply text-[24px] leading-[1.3] font-semibold;
+  }
+
+  .homepage-h4 {
+    @apply text-[20px] leading-[1.4] font-medium;
+  }
+
+  /* 首页标题 - 移动端 */
+  .homepage-h1-mobile {
+    @apply text-[32px] leading-[1.2] font-bold tracking-tight;
+  }
+
+  .homepage-h2-mobile {
+    @apply text-[24px] leading-[1.3] font-semibold;
+  }
+
+  .homepage-h3-mobile {
+    @apply text-[20px] leading-[1.3] font-semibold;
+  }
+
+  /* 首页正文 */
+  .homepage-body {
+    @apply text-[16px] leading-[1.6] max-w-[720px];
+  }
+
+  .homepage-small {
+    @apply text-[14px] leading-[1.5];
+  }
+
+  /* 首页按钮 */
+  .homepage-button-primary {
+    @apply text-[16px] leading-[1.2] font-semibold;
+  }
+
+  .homepage-button-secondary {
+    @apply text-[14px] leading-[1.2] font-medium;
+  }
+
+  /* 首页引言/评价 */
+  .homepage-quote {
+    @apply text-[16px] leading-[1.6] italic;
+  }
+
+  .homepage-quote-author {
+    @apply text-[14px] font-medium;
+  }
+
+  /* 首页间距 */
+  .homepage-title-spacing {
+    @apply mb-3;
+    /* 标题下到正文 12px */
+  }
+
+  .homepage-section-spacing {
+    @apply mb-12 md:mb-16;
+    /* 模块间距 48-64px */
+  }
+}
