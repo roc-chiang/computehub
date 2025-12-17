@@ -91,7 +91,7 @@ export default function NewDeployment() {
                 const token = await getToken();
                 if (!token) return;
 
-                const response = await fetch("/api/v1/user-providers", {
+                const response = await fetch("http://localhost:8000/api/v1/user-providers", {
                     headers: { "Authorization": `Bearer ${token}` },
                 });
                 if (response.ok) {

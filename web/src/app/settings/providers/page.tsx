@@ -32,7 +32,7 @@ export default function ProvidersPage() {
 
     const fetchBindings = async () => {
         try {
-            const response = await fetch("/api/v1/user-providers");
+            const response = await fetch("http://localhost:8000/api/v1/user-providers");
             if (response.ok) {
                 const data = await response.json();
                 setBindings(data);
@@ -67,7 +67,7 @@ export default function ProvidersPage() {
         }
 
         try {
-            const response = await fetch(`/api/v1/user-providers/${bindingId}`, {
+            const response = await fetch(`http://localhost:8000/api/v1/user-providers/${bindingId}`, {
                 method: "DELETE",
             });
 
