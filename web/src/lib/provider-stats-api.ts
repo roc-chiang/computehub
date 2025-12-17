@@ -1,5 +1,7 @@
 // Provider Statistics Types and API
 
+const API_BASE_URL = "http://localhost:8000";
+
 export interface MonthlyData {
     month: string;
     hours: number;
@@ -69,19 +71,19 @@ export interface ProvidersSummary {
 // API Functions
 
 export async function getProviderStats(providerId: number): Promise<ProviderStats> {
-    const response = await fetch(`/api/v1/admin/providers/${providerId}/stats`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${providerId}/stats`);
     if (!response.ok) throw new Error('Failed to fetch provider stats');
     return response.json();
 }
 
 export async function getProviderMetrics(providerId: number): Promise<ProviderMetrics> {
-    const response = await fetch(`/api/v1/admin/providers/${providerId}/metrics`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${providerId}/metrics`);
     if (!response.ok) throw new Error('Failed to fetch provider metrics');
     return response.json();
 }
 
 export async function getProvidersSummary(): Promise<ProvidersSummary> {
-    const response = await fetch('/api/v1/admin/providers/summary');
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/summary`);
     if (!response.ok) throw new Error('Failed to fetch providers summary');
     return response.json();
 }

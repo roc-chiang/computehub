@@ -41,7 +41,7 @@ export function ProviderBindings() {
                 return;
             }
 
-            const response = await fetch("/api/v1/user-providers", {
+            const response = await fetch("http://localhost:8000/api/v1/user-providers", {
                 headers: {
                     "Authorization": `Bearer ${token}`,
                 },
@@ -85,7 +85,7 @@ export function ProviderBindings() {
                 throw new Error("Authentication required");
             }
 
-            const response = await fetch(`/api/v1/user-providers/${bindingId}`, {
+            const response = await fetch(`http://localhost:8000/api/v1/user-providers/${bindingId}`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${token}`,

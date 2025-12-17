@@ -53,7 +53,7 @@ export function OnboardingWizard({ open, onOpenChange, providerName, onSuccess }
             }
 
             // Create provider binding
-            const response = await fetch("/api/v1/user-providers", {
+            const response = await fetch("http://localhost:8000/api/v1/user-providers", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -86,7 +86,7 @@ export function OnboardingWizard({ open, onOpenChange, providerName, onSuccess }
 
             // Verify the API key
             setStep("verify");
-            const verifyResponse = await fetch(`/api/v1/user-providers/${binding.id}/verify`, {
+            const verifyResponse = await fetch(`http://localhost:8000/api/v1/user-providers/${binding.id}/verify`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,

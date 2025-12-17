@@ -40,7 +40,7 @@ export default function GPUPricesDashboard() {
 
     const fetchPrices = async () => {
         try {
-            const response = await fetch("/api/v1/public/gpu-prices");
+            const response = await fetch("http://localhost:8000/api/v1/public/gpu-prices");
             if (response.ok) {
                 const data = await response.json();
                 setPrices(data);

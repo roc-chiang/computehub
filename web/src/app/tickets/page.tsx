@@ -164,7 +164,7 @@ export default function MyTicketsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
             </div>
         );
     }
@@ -174,10 +174,10 @@ export default function MyTicketsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-zinc-100">
+                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
                         My Support Tickets
                     </h2>
-                    <p className="text-zinc-400">View and manage your support requests.</p>
+                    <p className="text-text-secondary">View and manage your support requests.</p>
                 </div>
 
                 <Dialog open={newTicketOpen} onOpenChange={setNewTicketOpen}>
@@ -187,9 +187,9 @@ export default function MyTicketsPage() {
                             New Ticket
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-zinc-900 border-zinc-800">
+                    <DialogContent className="bg-cream-50 border-cream-200">
                         <DialogHeader>
-                            <DialogTitle className="text-zinc-100">Create New Ticket</DialogTitle>
+                            <DialogTitle className="text-text-primary">Create New Ticket</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
                             <div>
@@ -199,14 +199,14 @@ export default function MyTicketsPage() {
                                     value={subject}
                                     onChange={(e) => setSubject(e.target.value)}
                                     placeholder="Brief description of your issue"
-                                    className="bg-zinc-950 border-zinc-800"
+                                    className="border-cream-200"
                                 />
                             </div>
 
                             <div>
                                 <Label htmlFor="category">Category</Label>
                                 <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
-                                    <SelectTrigger className="bg-zinc-950 border-zinc-800">
+                                    <SelectTrigger className="border-cream-200">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -222,7 +222,7 @@ export default function MyTicketsPage() {
                             <div>
                                 <Label htmlFor="priority">Priority</Label>
                                 <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
-                                    <SelectTrigger className="bg-zinc-950 border-zinc-800">
+                                    <SelectTrigger className="border-cream-200">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -241,7 +241,7 @@ export default function MyTicketsPage() {
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     placeholder="Describe your issue in detail..."
-                                    className="bg-zinc-950 border-zinc-800 min-h-[150px]"
+                                    className="border-cream-200 min-h-[150px]"
                                 />
                             </div>
 
@@ -261,13 +261,13 @@ export default function MyTicketsPage() {
             </div>
 
             {/* Tickets List */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-cream-100 border-cream-200">
                 <CardContent className="pt-6">
                     {tickets.length === 0 ? (
                         <div className="text-center py-12">
-                            <MessageSquare className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-                            <p className="text-zinc-500">No tickets yet</p>
-                            <p className="text-sm text-zinc-600 mt-2">
+                            <MessageSquare className="h-12 w-12 text-text-secondary mx-auto mb-4" />
+                            <p className="text-text-secondary">No tickets yet</p>
+                            <p className="text-sm text-text-secondary mt-2">
                                 Create a ticket to get support from our team
                             </p>
                         </div>
@@ -276,18 +276,18 @@ export default function MyTicketsPage() {
                             {tickets.map((ticket) => (
                                 <div
                                     key={ticket.id}
-                                    className="p-4 bg-zinc-950 rounded-lg border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                                    className="p-4 bg-cream-50 rounded-lg border border-cream-200 hover:border-brand cursor-pointer transition-colors"
                                     onClick={() => handleTicketClick(ticket.id)}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="font-semibold text-zinc-100">
+                                                <h3 className="font-semibold text-text-primary">
                                                     #{ticket.id} {ticket.subject}
                                                 </h3>
                                                 {getStatusBadge(ticket.status)}
                                             </div>
-                                            <div className="flex items-center gap-4 text-sm text-zinc-500">
+                                            <div className="flex items-center gap-4 text-sm text-text-secondary">
                                                 <span className="capitalize">{ticket.category.replace("_", " ")}</span>
                                                 <span>•</span>
                                                 <span>{ticket.reply_count} replies</span>
@@ -305,31 +305,31 @@ export default function MyTicketsPage() {
 
             {/* Ticket Detail Dialog */}
             <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
-                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-zinc-900 border-zinc-800">
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-cream-50 border-cream-200">
                     {selectedTicket && (
                         <>
                             <DialogHeader>
-                                <DialogTitle className="text-zinc-100">
+                                <DialogTitle className="text-text-primary">
                                     Ticket #{selectedTicket.id}: {selectedTicket.subject}
                                 </DialogTitle>
                             </DialogHeader>
 
                             <div className="space-y-4">
                                 {/* Ticket Info */}
-                                <div className="flex items-center gap-4 p-4 bg-zinc-950 rounded-lg">
+                                <div className="flex items-center gap-4 p-4 bg-cream-100 rounded-lg">
                                     <div>
-                                        <p className="text-sm text-zinc-500">Status</p>
+                                        <p className="text-sm text-text-secondary">Status</p>
                                         {getStatusBadge(selectedTicket.status)}
                                     </div>
                                     <div>
-                                        <p className="text-sm text-zinc-500">Category</p>
-                                        <p className="text-zinc-100 capitalize">
+                                        <p className="text-sm text-text-secondary">Category</p>
+                                        <p className="text-text-primary capitalize">
                                             {selectedTicket.category.replace("_", " ")}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-sm text-zinc-500">Created</p>
-                                        <p className="text-zinc-100">
+                                        <p className="text-sm text-text-secondary">Created</p>
+                                        <p className="text-text-primary">
                                             {new Date(selectedTicket.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
@@ -337,25 +337,25 @@ export default function MyTicketsPage() {
 
                                 {/* Conversation */}
                                 <div className="space-y-3">
-                                    <h3 className="font-semibold text-zinc-100">Conversation</h3>
+                                    <h3 className="font-semibold text-text-primary">Conversation</h3>
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
                                         {selectedTicket.replies.map((reply) => (
                                             <div
                                                 key={reply.id}
                                                 className={`p-4 rounded-lg ${reply.is_admin
-                                                        ? "bg-blue-950 border border-blue-800"
-                                                        : "bg-zinc-950 border border-zinc-800"
+                                                    ? "bg-blue-100 border border-brand"
+                                                    : "bg-cream-100 border border-cream-200"
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="font-medium text-zinc-100">
+                                                    <span className="font-medium text-text-primary">
                                                         {reply.is_admin ? "👨‍💼 Support Team" : "You"}
                                                     </span>
-                                                    <span className="text-sm text-zinc-500">
+                                                    <span className="text-sm text-text-secondary">
                                                         {new Date(reply.created_at).toLocaleString()}
                                                     </span>
                                                 </div>
-                                                <p className="text-zinc-300 whitespace-pre-wrap">{reply.message}</p>
+                                                <p className="text-text-primary whitespace-pre-wrap">{reply.message}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -364,12 +364,12 @@ export default function MyTicketsPage() {
                                 {/* Reply Form - Only if not closed */}
                                 {selectedTicket.status !== TicketStatus.CLOSED && (
                                     <div className="space-y-3">
-                                        <h3 className="font-semibold text-zinc-100">Add Reply</h3>
+                                        <h3 className="font-semibold text-text-primary">Add Reply</h3>
                                         <Textarea
                                             placeholder="Type your reply..."
                                             value={replyMessage}
                                             onChange={(e) => setReplyMessage(e.target.value)}
-                                            className="bg-zinc-950 border-zinc-800 min-h-[100px]"
+                                            className="border-cream-200 min-h-[100px]"
                                         />
                                         <Button onClick={handleReply} disabled={replying || !replyMessage.trim()}>
                                             {replying ? (

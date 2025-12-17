@@ -34,12 +34,32 @@ export default function DashboardPage() {
     const { user } = useUser();
 
     useEffect(() => {
+        console.log('[Dashboard] Auth State: Loaded=' + isLoaded + ', SignedIn=' + isSignedIn + ', User=' + user?.id);
+
         const fetchData = async () => {
-            if (!isLoaded || !isSignedIn) return;
+            if (!isLoaded) {
+                console.log('[Dashboard] Clerk not loaded yet, waiting...');
+                return;
+            }
+
+            if (!isSignedIn) {
+                console.log('[Dashboard] User not signed in');
+                setLoading(false);
+                return;
+            }
 
             try {
                 const token = await getToken();
+                console.log('[Dashboard] Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
+
+                if (!token) {
+                    console.log('[Dashboard] No token available');
+                    setLoading(false);
+                    return;
+                }
+
                 setAuthToken(token);
+                console.log('[Dashboard] Token set, making API calls...');
 
                 const [deploymentsData, summaryData, timelineData, subscriptionData] = await Promise.all([
                     getDeployments(),
@@ -62,7 +82,7 @@ export default function DashboardPage() {
         };
 
         fetchData();
-    }, [isLoaded, isSignedIn, getToken]);
+    }, [isLoaded, isSignedIn, getToken, user]);
 
     const activeDeployments = deployments.filter(d => d.status.toLowerCase() === "running").length;
     const recentDeployments = deployments.slice(0, 5);

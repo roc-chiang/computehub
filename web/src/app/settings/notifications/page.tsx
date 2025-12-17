@@ -154,14 +154,14 @@ export default function NotificationsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
             </div>
         );
     }
 
     if (!settings) {
         return (
-            <div className="text-center text-zinc-400 py-12">
+            <div className="text-center text-text-secondary py-12">
                 Failed to load notification settings
             </div>
         );
@@ -171,10 +171,10 @@ export default function NotificationsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-zinc-100">
+                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
                         Notification Settings
                     </h2>
-                    <p className="text-zinc-400">
+                    <p className="text-text-secondary">
                         Configure how you receive notifications
                     </p>
                 </div>
@@ -202,7 +202,7 @@ export default function NotificationsPage() {
             </div>
 
             {/* Telegram Configuration */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-cream-100 border-cream-200">
                 <CardHeader>
                     <CardTitle>Telegram Notifications</CardTitle>
                     <CardDescription>
@@ -222,7 +222,7 @@ export default function NotificationsPage() {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
                                     <Label>Enable Telegram Notifications</Label>
-                                    <p className="text-sm text-zinc-500">
+                                    <p className="text-sm text-text-secondary">
                                         Receive notifications via Telegram
                                     </p>
                                 </div>
@@ -269,7 +269,7 @@ export default function NotificationsPage() {
                                             href={bindUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-blue-400 hover:underline"
+                                            className="text-brand hover:underline"
                                         >
                                             {bindUrl}
                                         </a>
@@ -282,7 +282,7 @@ export default function NotificationsPage() {
             </Card>
 
             {/* Email Configuration */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-cream-100 border-cream-200">
                 <CardHeader>
                     <CardTitle>Email Notifications</CardTitle>
                     <CardDescription>
@@ -305,7 +305,7 @@ export default function NotificationsPage() {
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label>Enable Email Notifications</Label>
-                            <p className="text-sm text-zinc-500">
+                            <p className="text-sm text-text-secondary">
                                 Receive notifications via email
                             </p>
                         </div>
@@ -329,7 +329,7 @@ export default function NotificationsPage() {
             </Card>
 
             {/* Event Preferences */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-cream-100 border-cream-200">
                 <CardHeader>
                     <CardTitle>Event Preferences</CardTitle>
                     <CardDescription>
@@ -340,7 +340,7 @@ export default function NotificationsPage() {
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label>Deployment Success</Label>
-                            <p className="text-sm text-zinc-500">
+                            <p className="text-sm text-text-secondary">
                                 Notify when deployments succeed
                             </p>
                         </div>
