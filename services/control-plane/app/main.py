@@ -50,7 +50,7 @@ from app.api.v1 import (
     deployments_admin, admin_stats, audit, settings as settings_router, 
     tickets_admin, tickets, providers_stats, providers_crud, public_pricing,
     user_providers, costs, deployment_templates, subscriptions, notifications,
-    availability
+    availability, user_profile
 )
 
 # Public endpoints (no auth required)
@@ -63,6 +63,7 @@ app.include_router(deployment_templates.router, prefix="/api/v1", tags=["deploym
 app.include_router(subscriptions.router, prefix="/api/v1", tags=["subscriptions"])
 app.include_router(notifications.router, prefix="/api/v1", tags=["notifications"])
 app.include_router(availability.router, prefix="/api/v1", tags=["availability"])
+app.include_router(user_profile.router, prefix="/api/v1", tags=["user-profile"])
 
 # Protected endpoints
 app.include_router(deployments.router, prefix="/api/v1/deployments", tags=["deployments"])

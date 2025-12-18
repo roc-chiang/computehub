@@ -41,6 +41,7 @@ class User(SQLModel, table=True):
     clerk_id: Optional[str] = Field(default=None, index=True, unique=True)
     auth_provider: str = "email"  # email, google, github
     plan: str = "free"  # free, pro, enterprise
+    preferences_json: Optional[str] = None  # JSON string for user preferences
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Deployment(SQLModel, table=True):
