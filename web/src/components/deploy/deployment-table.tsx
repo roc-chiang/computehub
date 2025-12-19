@@ -27,6 +27,12 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -141,6 +147,7 @@ export function DeploymentTable({ data, onDelete, showFilter = true }: Deploymen
                             <TableHead>Provider</TableHead>
                             <TableHead>GPU</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Access</TableHead>
                             <TableHead>Created At</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -149,6 +156,26 @@ export function DeploymentTable({ data, onDelete, showFilter = true }: Deploymen
                         {filteredData.map((deploy) => {
                             const isRunning = deploy.status.toLowerCase() === "running";
                             const isStopped = deploy.status.toLowerCase() === "stopped";
+
+                            // Determine template type from image
+                            const getTemplateType = (image: string): "sd" | "comfyui" | "llm" | "jupyter" | "unknown" => {
+                                const imageLower = image.toLowerCase();
+                                if (imageLower.includes("stable-diffusion") || imageLower.includes("sd-webui")) {
+                                    return "sd";
+                                }
+                                if (imageLower.includes("comfyui")) {
+                                    return "comfyui";
+                                }
+                                if (imageLower.includes("pytorch") || imageLower.includes("tensorflow") || imageLower.includes("vllm")) {
+                                    return "llm";
+                                }
+                                if (imageLower.includes("jupyter")) {
+                                    return "jupyter";
+                                }
+                                return "unknown";
+                            };
+
+                            const templateType = getTemplateType(deploy.image);
 
                             return (
                                 <TableRow key={deploy.id}>
@@ -173,6 +200,45 @@ export function DeploymentTable({ data, onDelete, showFilter = true }: Deploymen
                                     </TableCell>
                                     <TableCell>
                                         <StatusBadge status={deploy.status} />
+                                    </TableCell>
+                                    <TableCell>
+                                        {isRunning && deploy.endpoint_url ? (
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="bg-brand/10 border-brand text-brand hover:bg-brand hover:text-white"
+                                                    asChild
+                                                >
+                                                    <a href={deploy.endpoint_url} target="_blank" rel="noreferrer">
+                                                        <ExternalLink className="mr-2 h-3 w-3" />
+                                                        {templateType === "sd" || templateType === "comfyui"
+                                                            ? "Open Web UI"
+                                                            : templateType === "llm"
+                                                                ? "Open API Endpoint"
+                                                                : templateType === "jupyter"
+                                                                    ? "Open Jupyter"
+                                                                    : "Open Endpoint"
+                                                        }
+                                                    </a>
+                                                </Button>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-xs">
+                                                            <p className="font-semibold mb-1">⚠️ Public URL</p>
+                                                            <p className="text-xs">This URL is publicly accessible. Anyone with this link can access your deployment. Do not share unless necessary.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">
+                                                {isRunning ? "No endpoint" : "Not running"}
+                                            </span>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                         {new Date(deploy.created_at).toLocaleDateString()}

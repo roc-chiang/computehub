@@ -133,7 +133,41 @@ export default function DeploymentDetailsPage() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Dashboard
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                    {/* Status Indicator */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted">
+                        {deployment.status === "running" && (
+                            <>
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                <span className="text-sm font-medium text-green-600">Live</span>
+                            </>
+                        )}
+                        {deployment.status === "creating" && (
+                            <>
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+                                </span>
+                                <span className="text-sm font-medium text-yellow-600">Starting</span>
+                            </>
+                        )}
+                        {deployment.status === "stopped" && (
+                            <>
+                                <span className="h-2 w-2 rounded-full bg-gray-400"></span>
+                                <span className="text-sm font-medium text-gray-600">Stopped</span>
+                            </>
+                        )}
+                        {deployment.status === "error" && (
+                            <>
+                                <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                                <span className="text-sm font-medium text-red-600">Error</span>
+                            </>
+                        )}
+                    </div>
+
                     {deployment.status === "running" && (
                         <Button
                             variant="outline"

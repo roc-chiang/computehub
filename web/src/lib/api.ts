@@ -43,6 +43,7 @@ export interface DeploymentCreate {
     gpu_type: string;
     image: string;
     gpu_count: number;
+    template_type?: string;
 }
 
 export async function getDeployments(): Promise<Deployment[]> {
@@ -72,14 +73,35 @@ export async function createDeployment(data: DeploymentCreate): Promise<Deployme
 
     if (!res.ok) {
         // Try to parse error response
+        const responseText = await res.text();
+        console.log("Error response:", responseText);
+
+        let errorDetail = null;
+
+        // Try to parse as JSON
         try {
-            const errorData = await res.json();
-            const error: any = new Error("Failed to create deployment");
-            error.response = { data: { detail: errorData.detail } };
-            throw error;
+            const errorData = JSON.parse(responseText);
+            console.log("Parsed error data:", errorData);
+            errorDetail = errorData.detail;
         } catch (parseError) {
-            throw new Error("Failed to create deployment");
+            console.error("Failed to parse JSON, treating as text error");
+
+            // Extract provider name from error message if possible
+            const providerMatch = responseText.match(/connect your (\w+) account/i);
+            const provider = providerMatch ? providerMatch[1] : null;
+
+            // Create error detail structure from text
+            errorDetail = {
+                error: "provider_not_connected",
+                message: responseText,
+                provider: provider
+            };
         }
+
+        // Now throw the error with proper structure (outside try-catch)
+        const error: any = new Error(errorDetail?.message || "Failed to create deployment");
+        error.response = { data: { detail: errorDetail } };
+        throw error;
     }
 
     return res.json();

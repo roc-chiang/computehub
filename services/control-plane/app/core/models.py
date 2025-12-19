@@ -58,6 +58,8 @@ class Deployment(SQLModel, table=True):
     ssh_password: Optional[str] = None
     instance_id: Optional[str] = None  # ID from the provider
     image: str
+    template_type: Optional[str] = None  # Template identifier (e.g., "image-generation")
+    exposed_port: Optional[int] = None  # Port exposed by the template
     # Configuration details
     vcpu_count: Optional[int] = None
     ram_gb: Optional[int] = None

@@ -48,6 +48,46 @@ class ProviderAdapter(ABC):
         Returns None if unavailable or if there's an error.
         """
         pass
+    
+    @abstractmethod
+    async def get_logs(
+        self, 
+        instance_id: str, 
+        lines: int = 100,
+        since: Optional[Any] = None
+    ) -> list[str]:
+        """
+        Get container logs from the instance.
+        
+        Args:
+            instance_id: Instance ID
+            lines: Number of log lines to return
+            since: Only return logs after this timestamp (optional)
+        
+        Returns:
+            List of log lines
+        """
+        pass
+    
+    @abstractmethod
+    async def get_metrics(self, instance_id: str) -> Dict[str, Any]:
+        """
+        Get performance metrics from the instance.
+        
+        Args:
+            instance_id: Instance ID
+        
+        Returns:
+            Dictionary containing:
+            - gpu_utilization: GPU usage percentage (0-100)
+            - gpu_memory_utilization: GPU memory usage percentage (0-100)
+            - cpu_utilization: CPU usage percentage (0-100)
+            - ram_utilization: RAM usage percentage (0-100)
+            - network_rx_bytes: Network received bytes
+            - network_tx_bytes: Network transmitted bytes
+        """
+        pass
+
 
 
 class ProviderAdapterTemplate(ProviderAdapter):

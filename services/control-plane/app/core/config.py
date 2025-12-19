@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     RUNPOD_API_KEY: str = ""
     VASTAI_API_KEY: str = ""
     LAMBDA_API_KEY: str = ""
+    
+    # Testing Mode
+    DRY_RUN: bool = False  # If True, don't make real API calls to providers
 
     class Config:
         env_file = ".env"

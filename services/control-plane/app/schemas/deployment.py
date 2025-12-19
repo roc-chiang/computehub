@@ -9,6 +9,7 @@ class DeploymentCreate(BaseModel):
     gpu_type: str
     image: str
     gpu_count: int = 1
+    template_type: Optional[str] = None  # Template identifier (e.g., "image-generation")
 
 class DeploymentRead(BaseModel):
     id: int
@@ -23,6 +24,8 @@ class DeploymentRead(BaseModel):
     ssh_password: Optional[str] = None
     instance_id: Optional[str] = None
     image: str
+    template_type: Optional[str] = None
+    exposed_port: Optional[int] = None
     # Configuration details
     vcpu_count: Optional[int] = None
     ram_gb: Optional[int] = None

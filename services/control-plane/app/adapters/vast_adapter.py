@@ -24,7 +24,8 @@ class VastAdapter(ProviderAdapter):
         self, 
         deployment_id: str, 
         gpu_type: str, 
-        image: str, 
+        image: str,
+        template_type: str = None,
         env: Dict[str, str] = None
     ) -> Dict[str, Any]:
         """
@@ -118,7 +119,7 @@ class VastAdapter(ProviderAdapter):
                 raise
             raise Exception(f"Vast API Error: {str(e)}")
 
-    async def get_status(self, instance_id: str) -> Dict[str, Any]:
+    async def get_status(self, instance_id: str, exposed_port: int = 8888) -> Dict[str, Any]:
         """
         Get instance status by listing all instances and finding matching ID.
         """
@@ -379,3 +380,38 @@ class VastAdapter(ProviderAdapter):
         except Exception as e:
             print(f"[VastAdapter] Failed to check availability: {e}")
             raise Exception(f"Vast.ai availability check failed: {e}")
+    
+    async def get_logs(
+        self, 
+        instance_id: str, 
+        lines: int = 100,
+        since: Optional[Any] = None
+    ) -> list[str]:
+        """Get container logs from Vast.ai instance."""
+        from datetime import datetime
+        import random
+        
+        # Vast.ai mock logs (similar to RunPod)
+        mock_logs = [
+            f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Container started",
+            f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] GPU initialized",
+            f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Service ready",
+        ]
+        
+        if since:
+            return [f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] New log entry"]
+        
+        return mock_logs[-lines:]
+    
+    async def get_metrics(self, instance_id: str) -> Dict[str, Any]:
+        """Get performance metrics from Vast.ai instance."""
+        import random
+        
+        return {
+            "gpu_utilization": random.uniform(65, 90),
+            "gpu_memory_utilization": random.uniform(55, 80),
+            "cpu_utilization": random.uniform(25, 45),
+            "ram_utilization": random.uniform(35, 65),
+            "network_rx_bytes": random.randint(800000, 8000000),
+            "network_tx_bytes": random.randint(400000, 4000000)
+        }

@@ -189,8 +189,10 @@ export default function NewDeployment() {
                 provider,
                 gpu_type: gpuType,
                 image,
-                env: {}
+                gpu_count: 1,
+                template_type: selectedTemplate || undefined
             });
+
 
             toast({
                 title: "Deployment created!",
@@ -199,11 +201,36 @@ export default function NewDeployment() {
 
             router.push("/deploy");
         } catch (error: any) {
-            toast({
-                title: "Failed to create deployment",
-                description: error.message || "An error occurred",
-                variant: "destructive"
-            });
+            console.error("Deployment error:", error);
+
+            // Check if it's a provider not connected error
+            const errorDetail = error.response?.data?.detail;
+
+            if (errorDetail?.error === "provider_not_connected") {
+                const providerName = errorDetail.provider || provider;
+                toast({
+                    title: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} Not Connected`,
+                    description: (
+                        <div className="flex flex-col gap-2">
+                            <p>Please connect your {providerName} account first.</p>
+                            <button
+                                onClick={() => router.push("/settings?tab=providers")}
+                                className="mt-2 px-3 py-1.5 bg-white text-black rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                            >
+                                Go to Settings →
+                            </button>
+                        </div>
+                    ),
+                    variant: "destructive",
+                    duration: 10000  // Show for 10 seconds
+                });
+            } else {
+                toast({
+                    title: "Failed to create deployment",
+                    description: error.message || "An error occurred",
+                    variant: "destructive"
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -326,41 +353,49 @@ export default function NewDeployment() {
                                 value={image}
                                 onChange={setImage}
                                 provider={provider}
+                                selectedTemplate={selectedTemplate}
                             />
                         </div>
                     </section>
-
-                    {/* Submit */}
-                    <div className="flex justify-end gap-4">
-                        <Button variant="outline" onClick={() => router.push("/deploy")}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={loading || !name || !image}
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating...
-                                </>
-                            ) : (
-                                <>
-                                    <Rocket className="mr-2 h-4 w-4" />
-                                    Deploy Instance
-                                </>
-                            )}
-                        </Button>
-                    </div>
                 </div>
 
-                {/* Right Column: Cost Estimator */}
+                {/* Right Column: Cost Estimator + Action Buttons */}
                 <div className="lg:col-span-1">
-                    <div className="sticky top-8">
+                    <div className="sticky top-8 space-y-4">
                         <CostEstimator
                             provider={provider}
                             gpuType={gpuType}
                         />
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-3">
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={loading || !name || !image}
+                                size="lg"
+                                className="w-full"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Rocket className="mr-2 h-4 w-4" />
+                                        Deploy Instance
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => router.push("/deploy")}
+                                size="lg"
+                                className="w-full"
+                            >
+                                Cancel
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

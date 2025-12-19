@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Check, Code2, ImageIcon, Terminal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, ImageIcon, Bot, Workflow, Settings } from "lucide-react";
 import { TemplateCardSkeleton } from "@/components/skeletons/card-skeletons";
 
 export interface Template {
@@ -12,41 +12,43 @@ export interface Template {
     description: string;
     image: string;
     recommendedGpu: string;
-    category: "LLM" | "Image" | "General";
+    category: "image" | "llm" | "workflow" | "custom";
+    isAdvanced?: boolean;
 }
 
 const templates: Template[] = [
     {
-        id: "pytorch",
-        name: "PyTorch 2.0",
-        description: "PyTorch 2.0.1 with Python 3.10 and CUDA 11.8 development environment.",
-        image: "runpod/pytorch:2.0.1-py3.10-cuda11.8.0-devel",
-        recommendedGpu: "RTX4090",
-        category: "General",
-    },
-    {
-        id: "tensorflow",
-        name: "TensorFlow",
-        description: "Official TensorFlow image with GPU support and Jupyter.",
-        image: "runpod/tensorflow",
-        recommendedGpu: "RTX4090",
-        category: "General",
-    },
-    {
-        id: "sdxl",
-        name: "Stable Diffusion",
-        description: "Stable Diffusion with automatic1111 WebUI pre-installed.",
+        id: "image-generation",
+        name: "Image Generation",
+        description: "Generate images instantly in your browser",
         image: "runpod/stable-diffusion:web-ui-10.2.1",
         recommendedGpu: "RTX4090",
-        category: "Image",
+        category: "image",
     },
     {
-        id: "base",
-        name: "Base CUDA",
-        description: "Minimal CUDA 11.8 environment for custom setups.",
+        id: "llm-inference",
+        name: "LLM Inference",
+        description: "Deploy an inference endpoint in minutes",
+        image: "runpod/pytorch:2.0.1-py3.10-cuda11.8.0-devel", // Will be vLLM in future
+        recommendedGpu: "A100",
+        category: "llm",
+    },
+    {
+        id: "comfyui",
+        name: "ComfyUI",
+        description: "Build complex pipelines without code",
+        image: "runpod/base:0.4.0-cuda11.8.0", // Will be ComfyUI official image
+        recommendedGpu: "RTX4090",
+        category: "workflow",
+    },
+    {
+        id: "custom-docker",
+        name: "Custom Docker",
+        description: "For advanced users and experiments",
         image: "runpod/base:0.4.0-cuda11.8.0",
         recommendedGpu: "A100",
-        category: "General",
+        category: "custom",
+        isAdvanced: true,
     },
 ];
 
@@ -55,57 +57,111 @@ interface TemplateGalleryProps {
     onSelect: (template: Template) => void;
 }
 
-const categoryIcons = {
-    LLM: Code2,
-    Image: ImageIcon,
-    General: Terminal,
+const categoryConfig = {
+    image: {
+        icon: ImageIcon,
+        subtitle: "Stable Diffusion WebUI",
+        buttonText: "Launch",
+    },
+    llm: {
+        icon: Bot,
+        subtitle: "OpenAI-compatible API",
+        buttonText: "Launch",
+    },
+    workflow: {
+        icon: Workflow,
+        subtitle: "Visual workflow for generative models",
+        buttonText: "Launch",
+    },
+    custom: {
+        icon: Settings,
+        subtitle: "Full control over your environment",
+        buttonText: "Advanced",
+    },
 };
 
 export function TemplateGallery({ selectedTemplate, onSelect }: TemplateGalleryProps) {
     const [loading, setLoading] = useState(false);
 
-    // Simulate loading for demo purposes
-    // In real app, this would fetch templates from API
     if (loading) {
         return <TemplateCardSkeleton />;
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {templates.map((template) => {
-                const Icon = categoryIcons[template.category];
+                const config = categoryConfig[template.category];
+                const Icon = config.icon;
                 const isSelected = selectedTemplate === template.id;
+                const isAdvanced = template.isAdvanced;
 
                 return (
                     <Card
                         key={template.id}
-                        className={`cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 ${isSelected ? "border-primary shadow-md" : ""
+                        className={`cursor-pointer transition-all hover:shadow-lg ${isAdvanced
+                                ? "bg-cream-100/50 border-cream-200 hover:border-brand/30"
+                                : "bg-cream-100 border-cream-200 hover:border-brand"
+                            } ${isSelected ? "border-brand shadow-md ring-2 ring-brand/20" : ""
                             }`}
                         onClick={() => onSelect(template)}
                     >
-                        <CardHeader>
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-md bg-primary/10">
-                                        <Icon className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <div>
-                                        <CardTitle className="text-lg">{template.name}</CardTitle>
-                                    </div>
+                        <CardHeader className="pb-4">
+                            <div className="flex items-start justify-between mb-3">
+                                <div className={`p-3 rounded-lg ${isAdvanced ? "bg-cream-200/50" : "bg-brand/10"
+                                    }`}>
+                                    <Icon className={`h-8 w-8 ${isAdvanced ? "text-text-secondary" : "text-brand"
+                                        }`} />
                                 </div>
                                 {isSelected && (
-                                    <div className="p-1 rounded-full bg-primary">
-                                        <Check className="h-4 w-4 text-primary-foreground" />
+                                    <div className="p-1.5 rounded-full bg-brand">
+                                        <Check className="h-4 w-4 text-white" />
                                     </div>
                                 )}
                             </div>
-                            <CardDescription className="mt-2">{template.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex gap-2">
-                                <Badge variant="outline">{template.category}</Badge>
-                                <Badge variant="secondary">{template.recommendedGpu}</Badge>
+
+                            <div className="space-y-2">
+                                <CardTitle className={`text-2xl ${isAdvanced ? "text-text-secondary" : "text-text-primary"
+                                    }`}>
+                                    {template.name}
+                                </CardTitle>
+                                <p className={`text-sm font-medium ${isAdvanced ? "text-text-secondary/70" : "text-brand"
+                                    }`}>
+                                    {config.subtitle}
+                                </p>
                             </div>
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                            <CardDescription className={`text-base ${isAdvanced ? "text-text-secondary/60" : "text-text-secondary"
+                                }`}>
+                                {template.description}
+                            </CardDescription>
+
+                            <Button
+                                className={`w-full ${isAdvanced
+                                        ? "bg-cream-200 text-text-secondary hover:bg-cream-300 border border-cream-300"
+                                        : "bg-brand hover:bg-brand-dark text-white"
+                                    }`}
+                                variant={isAdvanced ? "outline" : "default"}
+                            >
+                                {config.buttonText}
+                            </Button>
+
+                            {template.category === "llm" && (
+                                <p className="text-xs text-text-secondary text-center">
+                                    Pre-configured with OpenAI-compatible API
+                                    <br />
+                                    No setup required
+                                </p>
+                            )}
+
+                            {isAdvanced && (
+                                <p className="text-xs text-text-secondary/60 text-center font-medium">
+                                    Advanced Users Only
+                                    <br />
+                                    Full control over your runtime environment.
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
                 );

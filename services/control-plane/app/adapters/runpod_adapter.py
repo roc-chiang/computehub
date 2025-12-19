@@ -38,19 +38,50 @@ class RunPodAdapter(ProviderAdapter):
         self, 
         deployment_id: str, 
         gpu_type: str, 
-        image: str, 
+        image: str,
+        template_type: str = None,
         env: Dict[str, str] = None
     ) -> Dict[str, Any]:
         """
         创建 RunPod GPU 实例
+        支持 DRY_RUN 模式用于测试
         """
+        # DRY_RUN 模式 - 不调用真实 API
+        if settings.DRY_RUN:
+            from uuid import uuid4
+            from app.core.template_config import get_template_port
+            
+            mock_id = f"dry-run-{uuid4().hex[:8]}"
+            port_config = get_template_port(template_type or "custom-docker")
+            port = port_config["port"]
+            
+            print(f"[DRY_RUN] Mock creating RunPod instance:")
+            print(f"  - ID: {mock_id}")
+            print(f"  - GPU: {gpu_type}")
+            print(f"  - Image: {image}")
+            print(f"  - Template: {template_type}")
+            print(f"  - Port: {port}")
+            
+            return {
+                "instance_id": mock_id,
+                "status": "creating",  # Start with creating, will be updated by sync task
+                "endpoint_url": None,  # Will be set by sync task
+                "exposed_port": port
+            }
+        
+        # 真实 API 调用
         if not self.api_key:
             raise ValueError("RUNPOD_API_KEY not configured")
         
         # 映射 GPU 类型
         runpod_gpu_type = GPU_TYPE_MAPPING.get(gpu_type, gpu_type)
         
-        # 构建 GraphQL mutation (使用 JSON 变量)
+        # 获取模板端口配置
+        from app.core.template_config import get_template_port
+        port_config = get_template_port(template_type or "custom-docker")
+        port = port_config["port"]
+        
+        # 构建 GraphQL mutation
         mutation = """
         mutation($input: PodFindAndDeployOnDemandInput!) {
           podFindAndDeployOnDemand(input: $input) {
@@ -65,6 +96,9 @@ class RunPodAdapter(ProviderAdapter):
         }
         """
         
+        # 根据模板类型设置不同的启动命令
+        docker_args = self._get_docker_args(template_type, port)
+        
         # 构建变量
         variables = {
             "input": {
@@ -77,8 +111,8 @@ class RunPodAdapter(ProviderAdapter):
                 "gpuTypeId": runpod_gpu_type,
                 "name": f"ch-{deployment_id}",
                 "imageName": image,
-                "dockerArgs": "bash -c 'jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=\"\" --NotebookApp.password=\"\" > /workspace/jupyter.log 2>&1 & sleep infinity'",
-                "ports": "8888/http,22/tcp",
+                "dockerArgs": docker_args,
+                "ports": f"{port}/http,22/tcp",
                 "volumeMountPath": "/workspace",
                 "env": [{"key": k, "value": v} for k, v in (env or {}).items()]
             }
@@ -92,7 +126,6 @@ class RunPodAdapter(ProviderAdapter):
                     json={"query": mutation, "variables": variables}
                 )
                 
-                # 打印响应以便调试
                 print(f"Response status: {response.status_code}")
                 print(f"Response body: {response.text}")
                 
@@ -106,15 +139,53 @@ class RunPodAdapter(ProviderAdapter):
                 
                 return {
                     "instance_id": pod_data["id"],
-                    "status": "creating"
+                    "status": "creating",
+                    "exposed_port": port
                 }
         except httpx.HTTPError as e:
             raise Exception(f"Failed to create RunPod instance: {str(e)}")
     
-    async def get_status(self, instance_id: str) -> Dict[str, Any]:
+    def _get_docker_args(self, template_type: str, port: int) -> str:
+        """
+        根据模板类型生成 Docker 启动参数
+        """
+        if template_type == "image-generation":
+            # Stable Diffusion WebUI - 通常镜像自带启动脚本
+            return ""
+        elif template_type == "llm-inference":
+            # vLLM 或 FastAPI - 需要启动服务
+            return f"bash -c 'python -m vllm.entrypoints.openai.api_server --host 0.0.0.0 --port {port} > /workspace/vllm.log 2>&1 & sleep infinity'"
+        elif template_type == "comfyui":
+            # ComfyUI - 通常镜像自带启动脚本
+            return ""
+        elif template_type == "jupyter":
+            # Jupyter Lab
+            return f"bash -c 'jupyter lab --ip=0.0.0.0 --port={port} --no-browser --allow-root --NotebookApp.token=\"\" --NotebookApp.password=\"\" > /workspace/jupyter.log 2>&1 & sleep infinity'"
+        else:
+            # Custom Docker - 让镜像自己处理
+            return ""
+    
+    async def get_status(self, instance_id: str, exposed_port: int = 8888) -> Dict[str, Any]:
         """
         查询 RunPod 实例状态
+        支持 DRY_RUN 模式
         """
+        # DRY_RUN 模式
+        if settings.DRY_RUN:
+            print(f"[DRY_RUN] Mock getting status for instance: {instance_id}")
+            return {
+                "status": "running",
+                "endpoint": f"http://localhost:{exposed_port}",
+                "ssh_connection_string": None,
+                "uptime_seconds": 0,
+                "vcpu_count": 4,
+                "ram_gb": 16,
+                "storage_gb": 40,
+                "gpu_utilization": 0,
+                "gpu_memory_utilization": 0
+            }
+        
+        # 真实 API 调用
         if not self.api_key:
             raise ValueError("RUNPOD_API_KEY not configured")
         
@@ -150,11 +221,6 @@ class RunPodAdapter(ProviderAdapter):
         }}
         """
         
-        # variables = {
-        #     "input": {
-        #         "podId": instance_id
-        #     }
-        # }
         variables = {}
         
         try:
@@ -172,7 +238,6 @@ class RunPodAdapter(ProviderAdapter):
                 
                 pod = data["data"]["pod"]
                 
-                # 打印完整的 pod 数据用于调试
                 print(f"[DEBUG] Full pod data: {pod}")
                 
                 if not pod:
@@ -182,7 +247,7 @@ class RunPodAdapter(ProviderAdapter):
                         "ssh_connection_string": None
                     }
 
-                # 判断状态 - 使用 desiredStatus 来区分
+                # 判断状态
                 desired_status = pod.get("desiredStatus", "").upper()
                 
                 # 提取运行时信息
@@ -194,14 +259,12 @@ class RunPodAdapter(ProviderAdapter):
                     uptime_seconds = pod["runtime"].get("uptimeInSeconds", 0)
                     gpus = pod["runtime"].get("gpus") or []
                     if gpus:
-                        # 取第一个 GPU 的数据（目前只支持单 GPU 监控）
                         gpu_utilization = gpus[0].get("gpuUtilPercent", 0)
                         gpu_memory_utilization = gpus[0].get("memoryUtilPercent", 0)
                 
                 # 提取配置信息
                 vcpu_count = pod.get("vcpuCount")
                 ram_gb = pod.get("memoryInGb")
-                # 存储 = 容器磁盘 + 卷存储
                 storage_gb = (pod.get("containerDiskInGb") or 0) + (pod.get("volumeInGb") or 0)
                 
                 if desired_status == "RUNNING":
@@ -214,10 +277,10 @@ class RunPodAdapter(ProviderAdapter):
                         # 容器已启动
                         status = "running"
                         
-                        # 总是生成 JupyterLab URL（使用 RunPod Proxy 格式）
-                        endpoint = f"https://{pod['id']}-8888.proxy.runpod.net"
+                        # 使用传入的 exposed_port 生成 endpoint URL
+                        endpoint = f"https://{pod['id']}-{exposed_port}.proxy.runpod.net"
                         
-                        # 尝试从 ports 提取 SSH 信息
+                        # 提取 SSH 信息
                         ports = pod["runtime"].get("ports") or []
                         print(f"[DEBUG] Ports for pod {pod['id']}: {ports}")
                         
@@ -234,11 +297,10 @@ class RunPodAdapter(ProviderAdapter):
                             ssh_connection_string = None
                             
                 elif desired_status == "EXITED":
-                    status = "stopped"  # 已停止
+                    status = "stopped"
                     endpoint = None
                     ssh_connection_string = None
                 else:
-                    # 其他状态（如 CREATED, EXITED 等）
                     status = "creating"
                     endpoint = None
                     ssh_connection_string = None
@@ -577,3 +639,79 @@ class RunPodAdapter(ProviderAdapter):
         except Exception as e:
             print(f"[RunPodAdapter] Failed to check availability: {e}")
             raise Exception(f"RunPod availability check failed: {e}")
+    
+    async def get_logs(
+        self, 
+        instance_id: str, 
+        lines: int = 100,
+        since: Optional[Any] = None
+    ) -> list[str]:
+        """
+        Get container logs from RunPod instance.
+        """
+        from app.core.config import settings
+        from datetime import datetime
+        import random
+        
+        if settings.DRY_RUN:
+            # Mock logs for testing
+            mock_logs = [
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Starting container...",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Loading environment variables",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Initializing GPU...",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] GPU detected: NVIDIA RTX 4090",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Loading model weights...",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Model loaded successfully",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Starting web server on port 7860...",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Server ready! Listening on http://0.0.0.0:7860",
+                f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Waiting for requests...",
+            ]
+            
+            # Simulate new logs if since is provided
+            if since:
+                return [
+                    f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Processing request #{random.randint(1, 100)}",
+                    f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Request completed in {random.uniform(0.1, 2.0):.2f}s",
+                ]
+            
+            return mock_logs[-lines:]
+        
+        # Real RunPod API call
+        try:
+            # RunPod doesn't have a direct logs API, would need to use SSH or other method
+            # For now, return placeholder
+            return [
+                "[INFO] Log retrieval from RunPod requires SSH access",
+                "[INFO] Please use SSH connection to view logs",
+                f"[INFO] Instance ID: {instance_id}"
+            ]
+        except Exception as e:
+            print(f"[RunPodAdapter] Failed to get logs: {e}")
+            return [f"[ERROR] Failed to retrieve logs: {str(e)}"]
+    
+    async def get_metrics(self, instance_id: str) -> Dict[str, Any]:
+        """Get performance metrics from RunPod instance."""
+        from app.core.config import settings
+        import random
+        
+        if settings.DRY_RUN:
+            # Mock metrics for testing
+            return {
+                "gpu_utilization": random.uniform(70, 95),
+                "gpu_memory_utilization": random.uniform(60, 85),
+                "cpu_utilization": random.uniform(30, 50),
+                "ram_utilization": random.uniform(40, 70),
+                "network_rx_bytes": random.randint(1000000, 10000000),
+                "network_tx_bytes": random.randint(500000, 5000000)
+            }
+        
+        # Real RunPod API - would need to implement actual metrics fetching
+        # For now, return placeholder
+        return {
+            "gpu_utilization": 0,
+            "gpu_memory_utilization": 0,
+            "cpu_utilization": 0,
+            "ram_utilization": 0,
+            "network_rx_bytes": 0,
+            "network_tx_bytes": 0
+        }

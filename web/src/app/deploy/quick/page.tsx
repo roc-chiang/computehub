@@ -15,29 +15,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 
-type WorkloadType = "training" | "inference" | "general";
+type WorkloadType = "image-generation" | "llm-inference" | "comfyui";
 
 const WORKLOAD_CONFIGS = {
-    training: {
-        label: "AI Model Training",
-        description: "Deep learning model training with high-performance GPUs",
-        icon: "🧠",
-        recommendedGPU: "RTX 4090",
-        defaultImage: "pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime"
+    "image-generation": {
+        label: "Image Generation",
+        description: "Generate images with Stable Diffusion WebUI",
+        icon: "🖼",
+        recommendedGPU: "RTX4090",
+        defaultImage: "runpod/stable-diffusion:web-ui-10.2.1"
     },
-    inference: {
-        label: "Inference Service",
-        description: "Model inference and API serving, balanced performance and cost",
-        icon: "⚡",
-        recommendedGPU: "RTX 4080",
-        defaultImage: "tensorflow/tensorflow:latest-gpu"
+    "llm-inference": {
+        label: "LLM Inference",
+        description: "Deploy an OpenAI-compatible API endpoint",
+        icon: "🤖",
+        recommendedGPU: "A100",
+        defaultImage: "runpod/pytorch:2.0.1-py3.10-cuda11.8.0-devel" // Will be vLLM
     },
-    general: {
-        label: "General Computing",
-        description: "Data processing, experiments, and general tasks",
-        icon: "🔧",
-        recommendedGPU: "RTX 3090",
-        defaultImage: "nvidia/cuda:11.8.0-base-ubuntu22.04"
+    "comfyui": {
+        label: "ComfyUI",
+        description: "Build visual AI workflows without code",
+        icon: "🧩",
+        recommendedGPU: "RTX4090",
+        defaultImage: "runpod/base:0.4.0-cuda11.8.0" // Will be ComfyUI official
     }
 };
 
@@ -131,8 +131,10 @@ export default function QuickDeploy() {
                 provider: selectedProvider,
                 gpu_type: WORKLOAD_CONFIGS[workloadType].recommendedGPU,
                 image,
-                env: {}
+                gpu_count: 1,
+                template_type: workloadType  // Pass template type
             });
+
 
             toast({
                 title: "Deployment created successfully!",
@@ -141,11 +143,36 @@ export default function QuickDeploy() {
 
             router.push("/deploy");
         } catch (error: any) {
-            toast({
-                title: "Creation failed",
-                description: error.message || "Unable to create deployment",
-                variant: "destructive"
-            });
+            console.error("Deployment error:", error);
+
+            // Check if it's a provider not connected error
+            const errorDetail = error.response?.data?.detail;
+
+            if (errorDetail?.error === "provider_not_connected") {
+                const providerName = errorDetail.provider || selectedProvider;
+                toast({
+                    title: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} Not Connected`,
+                    description: (
+                        <div className="flex flex-col gap-2">
+                            <p>Please connect your {providerName} account first.</p>
+                            <button
+                                onClick={() => router.push("/settings?tab=providers")}
+                                className="mt-2 px-3 py-1.5 bg-white text-black rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                            >
+                                Go to Settings →
+                            </button>
+                        </div>
+                    ),
+                    variant: "destructive",
+                    duration: 10000
+                });
+            } else {
+                toast({
+                    title: "Creation failed",
+                    description: error.message || "Unable to create deployment",
+                    variant: "destructive"
+                });
+            }
         } finally {
             setCreating(false);
         }
@@ -162,7 +189,6 @@ export default function QuickDeploy() {
 
     return (
         <div className="container max-w-4xl mx-auto py-8 px-4">
-            {/* Header */}
             <div className="mb-8">
                 <Link href="/deploy" className="inline-flex items-center text-sm text-text-secondary hover:text-text-primary mb-4">
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -171,31 +197,37 @@ export default function QuickDeploy() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Quick Deploy</h1>
-                        <p className="text-text-secondary mt-2">Create GPU deployment in one page</p>
+                        <p className="text-text-secondary mt-2">Launch pre-configured templates in minutes</p>
                     </div>
                     <Link href="/deploy/new">
-                        <Button variant="outline">Advanced Mode</Button>
+                        <Button variant="outline">
+                            Advanced Mode
+                            <span className="ml-2 text-xs text-text-secondary">(Custom Docker)</span>
+                        </Button>
                     </Link>
                 </div>
             </div>
 
             <div className="max-w-2xl mx-auto space-y-6">
-                {/* Step 1: Workload Type */}
-                <Card>
+                {/* Step 1: Template Selection */}
+                <Card className="bg-cream-100 border-cream-200">
                     <CardHeader>
-                        <CardTitle>1. What do you want to do?</CardTitle>
-                        <CardDescription>Choose your workload type</CardDescription>
+                        <CardTitle>1. Choose Your Template</CardTitle>
+                        <CardDescription>Select what you want to deploy</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <RadioGroup value={workloadType || ""} onValueChange={(v) => setWorkloadType(v as WorkloadType)}>
                             {Object.entries(WORKLOAD_CONFIGS).map(([key, config]) => (
-                                <div key={key} className="flex items-center space-x-3 p-4 border rounded-lg hover:border-primary cursor-pointer transition-colors">
+                                <div
+                                    key={key}
+                                    className="flex items-center space-x-3 p-4 border-2 border-cream-200 rounded-lg hover:border-brand cursor-pointer transition-colors bg-cream-50"
+                                >
                                     <RadioGroupItem value={key} id={key} />
                                     <Label htmlFor={key} className="flex-1 cursor-pointer">
                                         <div className="flex items-center gap-3">
                                             <span className="text-2xl">{config.icon}</span>
                                             <div>
-                                                <div className="font-medium">{config.label}</div>
+                                                <div className="font-semibold text-text-primary">{config.label}</div>
                                                 <div className="text-sm text-text-secondary">{config.description}</div>
                                             </div>
                                         </div>
@@ -203,15 +235,24 @@ export default function QuickDeploy() {
                                 </div>
                             ))}
                         </RadioGroup>
+
+                        <div className="mt-4 p-3 bg-cream-50 border border-cream-200 rounded-lg">
+                            <p className="text-sm text-text-secondary">
+                                💡 Need custom Docker images? Use{" "}
+                                <Link href="/deploy/new" className="text-brand hover:underline font-medium">
+                                    Advanced Mode
+                                </Link>
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 
                 {/* Step 2: Configuration */}
                 {workloadType && (
-                    <Card>
+                    <Card className="bg-cream-100 border-cream-200">
                         <CardHeader>
                             <CardTitle>2. Basic Configuration</CardTitle>
-                            <CardDescription>Just 2 fields to fill</CardDescription>
+                            <CardDescription>Name your deployment and confirm the image</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
@@ -222,7 +263,8 @@ export default function QuickDeploy() {
                                     id="name"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    placeholder="e.g., my-training-job"
+                                    placeholder="e.g., my-sd-instance"
+                                    className="bg-cream-50 border-cream-200"
                                 />
                             </div>
 
@@ -234,10 +276,11 @@ export default function QuickDeploy() {
                                     id="image"
                                     value={image}
                                     onChange={(e) => setImage(e.target.value)}
-                                    placeholder="e.g., pytorch/pytorch:latest"
+                                    placeholder="Pre-configured for this template"
+                                    className="bg-cream-50 border-cream-200 font-mono text-sm"
                                 />
                                 <p className="text-xs text-text-secondary">
-                                    Pre-filled with recommended image
+                                    ✅ Pre-filled with recommended image for {WORKLOAD_CONFIGS[workloadType].label}
                                 </p>
                             </div>
                         </CardContent>
@@ -246,10 +289,10 @@ export default function QuickDeploy() {
 
                 {/* Step 3: Provider Selection */}
                 {workloadType && availability && (
-                    <Card>
+                    <Card className="bg-cream-100 border-cream-200">
                         <CardHeader>
                             <CardTitle>3. Provider Selection</CardTitle>
-                            <CardDescription>Auto-selected based on best price</CardDescription>
+                            <CardDescription>Auto-selected based on best price and availability</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {loading ? (

@@ -62,16 +62,21 @@ async def create_deployment(
     current_user: User = Depends(get_current_user)
 ):
     concrete_provider = ProviderManager.resolve_provider(deployment_in.provider, session)
-    print(f"[DEBUG] Resolved provider {deployment_in.provider} -> {concrete_provider}")
 
     # Check if user has a provider binding for this provider
-    from app.core.models import UserProviderBinding
+    from app.core.models import UserProviderBinding, ProviderType
     from app.core.encryption import get_encryption
+    
+    # Convert to ProviderType enum for database comparison
+    if isinstance(concrete_provider, ProviderType):
+        provider_enum = concrete_provider
+    else:
+        provider_enum = ProviderType(concrete_provider.lower())
     
     binding = session.exec(
         select(UserProviderBinding).where(
             UserProviderBinding.user_id == current_user.clerk_id,
-            UserProviderBinding.provider_type == concrete_provider,
+            UserProviderBinding.provider_type == provider_enum,
             UserProviderBinding.is_active == True
         )
     ).first()
@@ -90,8 +95,12 @@ async def create_deployment(
     # Decrypt user's API key
     encryption = get_encryption()
     user_api_key = encryption.decrypt(binding.api_key_encrypted)
-    print(f"[DEBUG] Using user's API key for {concrete_provider}")
 
+    # Get port configuration from template
+    from app.core.template_config import get_template_port
+    port_config = get_template_port(deployment_in.template_type or "custom-docker")
+    exposed_port = port_config["port"]
+    
     deployment = Deployment(
         user_id=current_user.id,
         name=deployment_in.name,
@@ -99,6 +108,8 @@ async def create_deployment(
         gpu_type=deployment_in.gpu_type,
         gpu_count=deployment_in.gpu_count,
         image=deployment_in.image,
+        template_type=deployment_in.template_type,
+        exposed_port=exposed_port,
         status=DeploymentStatus.CREATING
     )
     session.add(deployment)
@@ -111,11 +122,17 @@ async def create_deployment(
         result = await adapter.create_instance(
             deployment_id=str(deployment.id),
             gpu_type=deployment.gpu_type,
-            image=deployment.image
+            image=deployment.image,
+            template_type=deployment_in.template_type  # Pass template_type to adapter
         )
         
         deployment.instance_id = result.get("instance_id")
         deployment.status = result.get("status", DeploymentStatus.CREATING)
+        
+        # Save endpoint_url if returned (DRY_RUN mode returns it immediately)
+        if result.get("endpoint_url"):
+            deployment.endpoint_url = result.get("endpoint_url")
+        
         session.add(deployment)
         session.commit()
         session.refresh(deployment)

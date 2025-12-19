@@ -13,9 +13,9 @@ else:
     DATABASE_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_SERVER}/{settings.POSTGRES_DB}"
 
 if "sqlite" in DATABASE_URL:
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=True)
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=False)
 else:
-    engine = create_engine(DATABASE_URL, echo=True)
+    engine = create_engine(DATABASE_URL, echo=False)
 
 def init_db():
     SQLModel.metadata.create_all(engine)
