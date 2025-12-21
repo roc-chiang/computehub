@@ -1,49 +1,84 @@
 # ComputeHub - Multi-Provider GPU Compute Platform
 
-A unified platform for managing GPU compute instances across multiple providers (RunPod, Vast.ai, Local).
+**Version**: v0.8.1  
+**Product Type**: SaaS Platform (Subscription-based)  
+**Core Value**: GPU Aggregation + Automation + Unified Management
+
+---
+
+## 🎯 What is ComputeHub?
+
+> **ComputeHub = Skyscanner for GPU + Cross-Cloud Orchestration**
+
+ComputeHub is a **management platform** that helps users:
+- 🔍 Find the cheapest GPU across multiple providers
+- 🎛️ Manage all GPU instances in one unified console
+- 🤖 Automate scheduling, failover, and cost optimization
+
+### What We Are NOT
+- ❌ Not a GPU provider
+- ❌ Not charging for GPU usage
+- ❌ Not承担 GPU costs
+
+### What We ARE
+- ✅ **Management Platform** - Unified control panel for RunPod, Vast.ai, etc.
+- ✅ **Automation Tool** - Smart scheduling, auto-restart, cost alerts
+- ✅ **SaaS Subscription** - Users pay monthly for management features
+
+---
+
+## 💰 Business Model
+
+### Subscription Plans
+| Plan | Price | Features |
+|------|-------|----------|
+| **Free** | $0/month | 1 Provider, Basic management, Price comparison |
+| **Pro** | $49/month | 3 Providers, Automation, Notifications, Templates |
+| **Team** | $299/month | Unlimited Providers, Advanced automation, Team collaboration |
+| **Enterprise** | Custom | Compliance, Private deployment, Custom development |
+
+### Revenue Model
+- Users pay ComputeHub for **management and automation services**
+- GPU costs are paid directly to providers (RunPod, Vast.ai, etc.)
+- High margin SaaS business (>80%)
+
+---
 
 ## ✨ Key Features
 
-### 🚀 **Smart Deployment**
-- **User-Centric Flow**: Simplified 3-step deployment (Templates → GPU → Configuration)
-- **Real-Time Price Comparison**: Dynamic pricing from all providers with 5-minute caching
-- **Auto-Selection**: Automatically recommends the cheapest available provider
-- **Manual Override**: Full control to select specific providers when needed
+### 🟢 Completed (v0.8.1)
+- ✅ Multi-provider deployment (RunPod, Vast.ai, Local)
+- ✅ Real-time price comparison
+- ✅ User authentication (Clerk)
+- ✅ Provider API key management (encrypted)
+- ✅ Deployment management (Create/Start/Stop/Delete)
+- ✅ Real-time logs viewer
+- ✅ Performance metrics charts (GPU/CPU/RAM)
+- ✅ Admin dashboard
 
-### 💰 **Transparent Pricing**
-- Live pricing from RunPod, Vast.ai, and Local providers
-- Price comparison drawer integrated into GPU selection
-- Real-time cost estimation with hourly/daily/monthly breakdowns
-- Visual indicators for best prices (🏆) and test providers
+### 🚧 In Progress
+- 🚧 Documentation reorganization
+- 🚧 Development roadmap
 
-### 🎯 **Multi-Provider Support**
-- **RunPod**: GraphQL API integration with on-demand pricing
-- **Vast.ai**: REST API with verified offers and price sorting
-- **Local**: Mock provider for testing (free)
+### ⏳ Planned (Priority Order)
+1. **Automation Engine** (P0 - Core Moat)
+   - Health checks & auto-restart
+   - Cost-based auto-migration
+   - Cross-provider failover
+   
+2. **Notification System** (P0)
+   - Email, Telegram, Webhook
+   - Downtime, cost alerts
+   
+3. **Subscription System** (P1)
+   - Stripe integration
+   - Plan management
+   
+4. **Real-time Monitoring** (P1)
+   - GPU temperature, utilization
+   - WebSSH terminal
 
-### 🔐 **Authentication & Security**
-- Clerk integration for user authentication
-- JWT-based API security
-- User synchronization and session management
-
-### 🛠️ **Admin & Management**
-- **Provider Management**: Add, edit, delete compute providers
-- **API Key Management**: Secure storage with visibility toggle
-- **Enable/Disable Providers**: Control which providers are active
-- **System Settings**: Centralized configuration management
-
-### 📊 **Advanced Monitoring**
-- Real-time GPU utilization metrics
-- Live log streaming from instances
-- Activity audit logs for all operations
-- Cost alerts and idle warnings
-
-### 🛠️ **Instance Management**
-- One-click deployment with templates
-- Start/Stop/Restart controls
-- SSH and JupyterLab access
-- Web-based file browser
-- Custom Docker image support
+---
 
 ## 🏗️ Architecture
 
@@ -66,66 +101,51 @@ A unified platform for managing GPU compute instances across multiple providers 
 └─────────────────────────────────┘
 ```
 
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
-- Node.js 18+ (for frontend development)
-- Python 3.11+ (for backend development)
+- Node.js 18+
+- Python 3.11+
 
 ### Local Development
 
-1. **Start Infrastructure**
-```bash
-cd infra
-docker-compose up -d
-```
-
-2. **Start Backend**
+1. **Start Backend**
 ```bash
 cd services/control-plane
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-3. **Start Frontend**
+2. **Start Frontend**
 ```bash
 cd web
 npm install
 npm run dev
 ```
 
-4. **Access Application**
+3. **Access Application**
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
+---
+
 ## 📖 Documentation
 
-- [Task Tracker](./brain/task.md) - Development progress and roadmap
-- [Price Comparison Walkthrough](./brain/walkthrough_price_comparison.md) - Detailed implementation guide
-- [Clerk Auth Walkthrough](./brain/walkthrough_clerk_auth.md) - Authentication setup
-- [API Documentation](http://localhost:8000/docs) - Interactive API docs (when running)
+### Essential Docs (Must Read)
+- **[PRD.md](./PRD.md)** ⭐⭐⭐ - Product positioning and business model
+- **[Help.md](./Help.md)** ⭐⭐⭐ - Developer quick start guide
+- **[ROADMAP.md](./ROADMAP.md)** ⭐⭐⭐ - Development roadmap and priorities
+- **[DOCS_INDEX.md](./DOCS_INDEX.md)** - Complete documentation index
 
-## 🔧 Configuration
+### Additional Docs
+- [CHANGELOG.md](./CHANGELOG.md) - Version history
+- [backend.md](./backend.md) - Backend development plan
 
-### Environment Variables
-
-**Backend** (`services/control-plane/.env`):
-```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/computehub
-REDIS_URL=redis://localhost:6379
-RUNPOD_API_KEY=your_runpod_key
-VAST_API_KEY=your_vast_key
-CLERK_SECRET_KEY=your_clerk_secret
-```
-
-**Frontend** (`web/.env.local`):
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_key
-CLERK_SECRET_KEY=your_clerk_secret
-```
+---
 
 ## 🎨 Tech Stack
 
@@ -141,58 +161,67 @@ CLERK_SECRET_KEY=your_clerk_secret
 - **Framework**: FastAPI
 - **Language**: Python 3.11
 - **ORM**: SQLModel (SQLAlchemy)
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL (SQLite for dev)
 - **Cache**: Redis
 - **Auth**: Clerk JWT validation
 
-### Infrastructure
-- **Containerization**: Docker
-- **Orchestration**: Docker Compose
-- **Reverse Proxy**: Caddy
-- **Object Storage**: MinIO (S3-compatible)
+---
 
-## 📊 Features Roadmap
+## 📊 Current Status
 
-### ✅ Completed (Phase 0-6)
-- [x] Multi-provider deployment system
-- [x] Real-time price comparison
-- [x] User-centric deployment flow
-- [x] Clerk authentication
-- [x] GPU metrics dashboard
-- [x] Log streaming
-- [x] File management
-- [x] Cost alerts
-- [x] Admin provider management
+### Completed Features (70%)
+- ✅ Core infrastructure
+- ✅ Multi-provider support
+- ✅ Deployment management
+- ✅ Price comparison
+- ✅ Real-time monitoring
 
-### 🚧 In Progress
-- [ ] Stripe payment integration
-- [ ] Usage analytics
-- [ ] Team collaboration features
+### Next Priorities
+1. **Automation Engine** (2-3 weeks) - Core competitive advantage
+2. **Notification System** (1 week) - User experience
+3. **Subscription System** (1 week) - Monetization
 
-### 📅 Planned
-- [ ] Spot instance support
-- [ ] Auto-scaling policies
-- [ ] Price history charts
-- [ ] Email notifications
-- [ ] API rate limiting
-- [ ] Webhook support
+---
+
+## 🎯 Success Metrics
+
+### User Growth
+- Month 3: 1000+ Free users
+- Month 6: 5-10% Pro conversion
+- Year 1: $50,000 MRR
+
+### Product Metrics
+- User retention: >60%
+- Pro feature usage: >80%
+- Auto-scheduling success: >95%
+
+---
 
 ## 🤝 Contributing
 
 This is a private project. For questions or suggestions, please contact the development team.
 
-## 📝 License
+---
 
-Proprietary - All rights reserved
+## 📝 Important Notes
 
-## 🙏 Acknowledgments
+### Core Principles
+```
+ComputeHub = Management Platform, NOT GPU Provider
+Revenue = Subscription Fees, NOT GPU Usage
+Value = Automation + Unified Management
+```
 
-- Built with [FastAPI](https://fastapi.tiangolo.com/)
-- UI components from [shadcn/ui](https://ui.shadcn.com/)
-- Authentication by [Clerk](https://clerk.com/)
-- Deployed on [RunPod](https://runpod.io/) and [Vast.ai](https://vast.ai/)
+### Development Guidelines
+1. Always refer to **PRD.md** for product positioning
+2. Check **ROADMAP.md** for current priorities
+3. Use **Help.md** for technical implementation
+4. All features must align with subscription-based SaaS model
 
 ---
 
-**Last Updated**: 2025-12-07
-**Version**: 0.6.0 (Phase 6 - Production Readiness)
+**Last Updated**: 2025-12-21  
+**Current Version**: v0.8.1  
+**Next Release**: v0.9.0 (Automation Engine)
+
+For detailed product requirements, see [PRD.md](./PRD.md)
