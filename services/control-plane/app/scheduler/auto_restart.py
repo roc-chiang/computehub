@@ -1,6 +1,9 @@
 """
-Auto Restart Manager
-Automatically restarts unhealthy deployments.
+Input: Deployment 对象, HealthCheckLog 历史记录, AutomationRule 配置
+Output: AutomationLog 操作日志, 重启命令执行结果
+Pos: Phase 9 自动化引擎的自动重启管理器,根据健康检查结果自动重启不健康部署
+
+一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
 from datetime import datetime, timedelta

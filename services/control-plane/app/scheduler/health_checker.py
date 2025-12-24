@@ -1,6 +1,9 @@
 """
-Health Checker Module
-Monitors deployment health and records status.
+Input: Deployment 对象(来自 app.core.models), Database Session
+Output: HealthCheckLog 记录, 健康状态数据, Uptime 百分比
+Pos: Phase 9 自动化引擎的健康检查核心,被 automation_tasks 定时调用
+
+一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
 import asyncio

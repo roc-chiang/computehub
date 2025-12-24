@@ -1,6 +1,9 @@
 """
-Automation API endpoints.
-Manage automation rules, view logs, and check health status.
+Input: HTTP 请求(FastAPI), 用户认证 token, 请求参数(规则配置、部署ID等)
+Output: REST API 响应(规则数据、健康状态、成本统计、操作日志)
+Pos: Phase 9 自动化引擎的 API 层,提供 10 个端点供前端调用,管理自动化规则和查询监控数据
+
+一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
 from typing import Optional

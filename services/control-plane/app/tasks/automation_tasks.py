@@ -1,6 +1,9 @@
 """
-Automation Background Tasks
-Scheduled tasks for health checks, cost monitoring, and auto-restart.
+Input: APScheduler 调度器, Database Session, Scheduler 模块(HealthChecker, AutoRestartManager, CostMonitor)
+Output: 定时执行的自动化任务(健康检查30s, 自动重启60s, 成本追踪1h, 成本上限1h)
+Pos: Phase 9 自动化引擎的任务调度器,在 app.main 启动时初始化,协调所有自动化功能
+
+一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler

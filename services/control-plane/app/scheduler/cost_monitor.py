@@ -1,6 +1,9 @@
 """
-Cost Monitor
-Tracks deployment costs and enforces cost limits.
+Input: Deployment 对象, Provider 价格信息, AutomationRule 成本上限配置
+Output: CostTracking 成本记录, 成本汇总统计, AutomationLog 停止日志
+Pos: Phase 9 自动化引擎的成本监控器,追踪 GPU 使用成本并执行成本上限策略
+
+一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
 from datetime import datetime, timedelta

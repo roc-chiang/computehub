@@ -1,3 +1,11 @@
+"""
+Input: SQLModel 基类, Enum 类型定义
+Output: 4 个数据库表模型(AutomationRule, HealthCheckLog, AutomationLog, CostTracking) 和相关 Enum
+Pos: Phase 9 自动化引擎的数据模型层,定义自动化系统的所有数据结构
+
+一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
+"""
+
 # Phase 9: Automation Engine Models
 # Added: 2025-12-21
 
