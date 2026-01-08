@@ -5,6 +5,8 @@ services:
     build:
       context: ./services/control-plane
       dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
     environment:
       - DATABASE_URL=sqlite:///./data/computehub.db
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
@@ -14,16 +16,13 @@ services:
     volumes:
       - backend-data:/app/data
     restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/docs" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   frontend:
     build:
       context: ./web
       dockerfile: Dockerfile
+      platforms:
+        - linux/arm64
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
