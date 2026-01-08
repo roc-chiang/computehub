@@ -94,15 +94,15 @@ export default function ProvidersPage() {
     };
 
     return (
-        <div className="container mx-auto py-8 px-4 max-w-5xl">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Provider Connections</h1>
-                <p className="text-muted-foreground">
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold tracking-tight">Provider Connections</h2>
+                <p className="text-muted-foreground mt-1">
                     Connect your GPU provider accounts to deploy workloads using your own API keys.
                 </p>
             </div>
 
-            <Alert className="mb-6">
+            <Alert>
                 <AlertDescription>
                     <strong>Why connect providers?</strong> ComputeHub uses your own API keys to deploy on your behalf.
                     You pay providers directly for compute costs. We only charge for platform features via credits.

@@ -32,8 +32,11 @@ class NotificationSettingsResponse(BaseModel):
     telegram_chat_id: Optional[str] = None
     telegram_username: Optional[str] = None
     email: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     enable_telegram: bool = True
     enable_email: bool = True
+    enable_webhook: bool = False
     enable_deployment_success: bool = True
     enable_deployment_failure: bool = True
     enable_instance_down: bool = True
@@ -44,8 +47,11 @@ class NotificationSettingsResponse(BaseModel):
 class NotificationSettingsUpdate(BaseModel):
     """Update notification settings"""
     email: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     enable_telegram: Optional[bool] = None
     enable_email: Optional[bool] = None
+    enable_webhook: Optional[bool] = None
     enable_deployment_success: Optional[bool] = None
     enable_deployment_failure: Optional[bool] = None
     enable_instance_down: Optional[bool] = None
@@ -408,3 +414,38 @@ async def test_notification(
         message="Test notification sent successfully",
         results=results
     )
+
+
+# ============================================================================
+# Webhook Test Endpoint (Phase 10)
+# ============================================================================
+
+class WebhookTestRequest(BaseModel):
+    """Webhook test request"""
+    url: str
+    secret: Optional[str] = None
+
+class WebhookTestResponse(BaseModel):
+    """Webhook test response"""
+    success: bool
+    message: str
+    url: str
+    timestamp: str
+
+@router.post("/notifications/webhook/test", response_model=WebhookTestResponse)
+async def test_webhook(
+    request: WebhookTestRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Test webhook endpoint"""
+    
+    from app.services.webhook_service import get_webhook_service
+    webhook_service = get_webhook_service(session)
+    
+    result = await webhook_service.test_webhook(
+        url=request.url,
+        secret=request.secret
+    )
+    
+    return WebhookTestResponse(**result)

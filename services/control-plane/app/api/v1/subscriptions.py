@@ -185,36 +185,73 @@ async def create_checkout_session(
     if request.tier not in ['pro', 'enterprise']:
         raise HTTPException(status_code=400, detail="Invalid tier. Must be 'pro' or 'enterprise'")
     
-    subscription = get_or_create_subscription(current_user.id, session)
+    subscription = get_or_create_subscription(current_user.clerk_id, session)
     
     # Check if already on this tier
     if subscription.tier.value == request.tier:
         raise HTTPException(status_code=400, detail=f"Already subscribed to {request.tier}")
     
-    # TODO: Implement Stripe checkout session creation
-    # For now, return placeholder
+    # Create Stripe checkout session
+    from app.services.stripe_service import get_stripe_service
+    stripe_service = get_stripe_service(session)
+    
+    if not stripe_service.is_configured():
+        raise HTTPException(status_code=503, detail="Stripe is not configured. Please contact administrator.")
+    
+    # Get base URL from request
+    base_url = str(request.url).split('/api/')[0]
+    success_url = f"{base_url}/settings/subscription?success=true"
+    cancel_url = f"{base_url}/settings/subscription?canceled=true"
+    
+    checkout_session = await stripe_service.create_checkout_session(
+        user_id=current_user.clerk_id,
+        tier=SubscriptionTier(request.tier),
+        success_url=success_url,
+        cancel_url=cancel_url
+    )
+    
+    if not checkout_session:
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+    
     return CheckoutResponse(
-        checkout_url="https://checkout.stripe.com/placeholder",
-        session_id="cs_placeholder"
+        checkout_url=checkout_session['url'],
+        session_id=checkout_session['session_id']
     )
 
 
 @router.post("/subscriptions/portal", response_model=PortalResponse)
 async def create_portal_session(
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    request: Request = None
 ):
     """Create Stripe customer portal session for subscription management"""
     
-    subscription = get_or_create_subscription(current_user.id, session)
+    subscription = get_or_create_subscription(current_user.clerk_id, session)
     
     if not subscription.stripe_customer_id:
         raise HTTPException(status_code=400, detail="No active subscription to manage")
     
-    # TODO: Implement Stripe portal session creation
-    return PortalResponse(
-        portal_url="https://billing.stripe.com/placeholder"
+    # Create Stripe portal session
+    from app.services.stripe_service import get_stripe_service
+    stripe_service = get_stripe_service(session)
+    
+    if not stripe_service.is_configured():
+        raise HTTPException(status_code=503, detail="Stripe is not configured")
+    
+    # Get base URL
+    base_url = str(request.url).split('/api/')[0] if request else "http://localhost:3000"
+    return_url = f"{base_url}/settings/subscription"
+    
+    portal_url = await stripe_service.create_portal_session(
+        customer_id=subscription.stripe_customer_id,
+        return_url=return_url
     )
+    
+    if not portal_url:
+        raise HTTPException(status_code=500, detail="Failed to create portal session")
+    
+    return PortalResponse(portal_url=portal_url)
 
 
 @router.post("/subscriptions/cancel")

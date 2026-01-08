@@ -66,6 +66,11 @@ async def on_startup():
     from app.tasks.automation_tasks import start_automation_tasks
     start_automation_tasks()
     print("[STARTUP] Automation tasks started")
+    
+    # Start advanced automation tasks (Phase 9 Week 2)
+    from app.tasks.advanced_automation_tasks import register_advanced_automation_tasks
+    register_advanced_automation_tasks(scheduler)
+    print("[STARTUP] Advanced automation tasks registered")
 
 @app.on_event("shutdown")
 async def on_shutdown():
@@ -84,6 +89,31 @@ async def on_shutdown():
     stop_automation_tasks()
     print("[SHUTDOWN] Automation tasks stopped")
 
+
+def get_provider_adapters():
+    """
+    Get all available provider adapters for advanced automation tasks.
+    Returns a dictionary of provider_type -> adapter instance.
+    """
+    from app.core.provider_manager import ProviderManager
+    from app.core.models import ProviderType
+    from app.core.db import get_session
+    
+    adapters = {}
+    
+    # Get a database session
+    with next(get_session()) as session:
+        # Get adapters for all known provider types
+        for provider_type in [ProviderType.RUNPOD, ProviderType.VAST]:
+            try:
+                adapter = ProviderManager.get_adapter(provider_type, session)
+                adapters[provider_type] = adapter
+            except Exception as e:
+                print(f"[ProviderAdapters] Failed to load adapter for {provider_type}: {e}")
+    
+    return adapters
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "version": "0.1.0"}
@@ -93,11 +123,15 @@ from app.api.v1 import (
     deployments_admin, admin_stats, audit, settings as settings_router, 
     tickets_admin, tickets, providers_stats, providers_crud, public_pricing,
     user_providers, costs, deployment_templates, subscriptions, notifications,
-    availability, user_profile, logs, metrics, automation
+    availability, user_profile, logs, metrics, automation, advanced_automation, rules,
+    stripe_webhook, templates, monitoring
 )
 
 # Public endpoints (no auth required)
 app.include_router(public_pricing.router, prefix="/api/v1", tags=["public"])
+
+# Stripe webhook (no auth - verified by signature)
+app.include_router(stripe_webhook.router, prefix="/api/v1", tags=["stripe"])
 
 # User endpoints (auth required)
 app.include_router(user_providers.router, prefix="/api/v1", tags=["user-providers"])
@@ -107,12 +141,16 @@ app.include_router(subscriptions.router, prefix="/api/v1", tags=["subscriptions"
 app.include_router(notifications.router, prefix="/api/v1", tags=["notifications"])
 app.include_router(availability.router, prefix="/api/v1", tags=["availability"])
 app.include_router(user_profile.router, prefix="/api/v1", tags=["user-profile"])
+app.include_router(templates.router, prefix="/api/v1", tags=["templates"])
+app.include_router(monitoring.router, prefix="/api/v1", tags=["monitoring"])
 
 # Protected endpoints
 app.include_router(deployments.router, prefix="/api/v1/deployments", tags=["deployments"])
 app.include_router(logs.router, prefix="/api/v1", tags=["logs"])
 app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
 app.include_router(automation.router, prefix="/api/v1", tags=["automation"])
+app.include_router(advanced_automation.router, prefix="/api/v1", tags=["advanced-automation"])
+app.include_router(rules.router, prefix="/api/v1", tags=["rules"])
 app.include_router(deployment_controls.router, prefix="/api/v1/deployments", tags=["deployment-controls"])
 app.include_router(pricing.router, prefix="/api/v1/pricing", tags=["pricing"])
 app.include_router(users.router, prefix="/api/v1/admin", tags=["admin-users"])

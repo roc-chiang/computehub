@@ -52,6 +52,14 @@ const FileBrowser = dynamic(
     }
 );
 
+const MonitoringDashboard = dynamic(
+    () => import("./monitoring/page").then(mod => ({ default: mod.default })),
+    {
+        loading: () => <div className="animate-pulse h-96 bg-muted rounded" />,
+        ssr: false
+    }
+);
+
 export default function DeploymentDetailsPage() {
     const params = useParams();
     const router = useRouter();

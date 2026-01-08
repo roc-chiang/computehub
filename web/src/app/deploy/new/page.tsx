@@ -67,12 +67,28 @@ export default function NewDeployment() {
                 const data = await getTemplates();
                 setTemplates(data);
 
-                // Check if loading from template via URL
-                const templateId = searchParams?.get("template");
-                if (templateId) {
-                    const template = data.find(t => t.id === parseInt(templateId));
-                    if (template) {
-                        loadFromTemplate(template);
+                // Check if loading from official template via URL
+                const fromTemplate = searchParams?.get("from_template");
+                if (fromTemplate === 'official') {
+                    const templateName = searchParams?.get("template_name");
+                    const image = searchParams?.get("image");
+                    const gpuType = searchParams?.get("gpu_type");
+
+                    if (templateName && image && gpuType) {
+                        // Auto-generate deployment name
+                        const timestamp = Date.now();
+                        setName(`${templateName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}`);
+                        setImage(image);
+                        setGpuType(gpuType);
+                    }
+                } else {
+                    // Check if loading from user template via URL
+                    const templateId = searchParams?.get("template");
+                    if (templateId) {
+                        const template = data.find(t => t.id === parseInt(templateId));
+                        if (template) {
+                            loadFromTemplate(template);
+                        }
                     }
                 }
             } catch (error) {

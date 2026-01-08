@@ -1,431 +1,336 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Bell, Send, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import {
-    getNotificationSettings,
-    updateNotificationSettings,
-    getTelegramStatus,
-    createTelegramBindToken,
-    unbindTelegram,
-    sendTestNotification,
-    type NotificationSettings,
-    type TelegramStatus,
-} from "@/lib/notification-api";
+import { Bell, Mail, Send, Webhook, CheckCircle2, XCircle } from "lucide-react";
+
+interface NotificationSettings {
+    telegram_chat_id: string | null;
+    telegram_username: string | null;
+    email: string | null;
+    webhook_url: string | null;
+    webhook_secret: string | null;
+    enable_telegram: boolean;
+    enable_email: boolean;
+    enable_webhook: boolean;
+    enable_deployment_success: boolean;
+    enable_deployment_failure: boolean;
+    enable_instance_down: boolean;
+    enable_cost_alert: boolean;
+    enable_price_change: boolean;
+    cost_alert_threshold: number;
+}
 
 export default function NotificationsPage() {
-    const { getToken, isLoaded, isSignedIn } = useAuth();
+    const [settings, setSettings] = useState<NotificationSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [settings, setSettings] = useState<NotificationSettings | null>(null);
-    const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
-    const [bindUrl, setBindUrl] = useState<string | null>(null);
-    const { toast } = useToast();
+    const [testingWebhook, setTestingWebhook] = useState(false);
+    const [webhookTestResult, setWebhookTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+    // Form state
+    const [email, setEmail] = useState("");
+    const [webhookUrl, setWebhookUrl] = useState("");
+    const [webhookSecret, setWebhookSecret] = useState("");
 
     useEffect(() => {
-        if (isLoaded && isSignedIn) {
-            fetchData();
-        }
-    }, [isLoaded, isSignedIn]);
+        fetchSettings();
+    }, []);
 
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchSettings = async () => {
         try {
-            const token = await getToken();
-            if (!token) {
-                throw new Error("No authentication token");
-            }
-            const [settingsData, statusData] = await Promise.all([
-                getNotificationSettings(token),
-                getTelegramStatus(token),
-            ]);
-            setSettings(settingsData);
-            setTelegramStatus(statusData);
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to load notification settings",
-                variant: "destructive",
+            const response = await fetch("/api/v1/notifications/settings", {
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
             });
+            if (response.ok) {
+                const data = await response.json();
+                setSettings(data);
+                setEmail(data.email || "");
+                setWebhookUrl(data.webhook_url || "");
+                setWebhookSecret(data.webhook_secret || "");
+            }
+        } catch (error) {
+            console.error("Failed to fetch settings:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSave = async () => {
-        if (!settings) return;
-
+    const updateSettings = async (updates: Partial<NotificationSettings>) => {
         setSaving(true);
         try {
-            const token = await getToken();
-            if (!token) throw new Error("No token");
-            const updated = await updateNotificationSettings(token, {
-                email: settings.email,
-                enable_telegram: settings.enable_telegram,
-                enable_email: settings.enable_email,
-                enable_deployment_success: settings.enable_deployment_success,
-                enable_deployment_failure: settings.enable_deployment_failure,
-                enable_instance_down: settings.enable_instance_down,
-                enable_cost_alert: settings.enable_cost_alert,
-                enable_price_change: settings.enable_price_change,
-                cost_alert_threshold: settings.cost_alert_threshold,
+            const response = await fetch("/api/v1/notifications/settings", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                },
+                body: JSON.stringify(updates)
             });
-            setSettings(updated);
-            toast({
-                title: "Success",
-                description: "Notification settings updated",
-            });
+            if (response.ok) {
+                const data = await response.json();
+                setSettings(data);
+            }
         } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to update settings",
-                variant: "destructive",
-            });
+            console.error("Failed to update settings:", error);
         } finally {
             setSaving(false);
         }
     };
 
-    const handleBindTelegram = async () => {
+    const testWebhook = async () => {
+        setTestingWebhook(true);
+        setWebhookTestResult(null);
         try {
-            const token = await getToken();
-            if (!token) throw new Error("No token");
-            const response = await createTelegramBindToken(token);
-            setBindUrl(response.bind_url);
-            toast({
-                title: "Bind URL Generated",
-                description: "Click the link below to bind your Telegram account",
+            const response = await fetch("/api/v1/notifications/webhook/test", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                },
+                body: JSON.stringify({
+                    url: webhookUrl,
+                    secret: webhookSecret || null
+                })
             });
-        } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message || "Failed to generate bind URL",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const handleUnbindTelegram = async () => {
-        try {
-            const token = await getToken();
-            if (!token) throw new Error("No token");
-            await unbindTelegram(token);
-            setTelegramStatus({ is_bound: false });
-            toast({
-                title: "Success",
-                description: "Telegram unbound successfully",
-            });
+            if (response.ok) {
+                const data = await response.json();
+                setWebhookTestResult(data);
+            }
         } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to unbind Telegram",
-                variant: "destructive",
+            console.error("Failed to test webhook:", error);
+            setWebhookTestResult({
+                success: false,
+                message: "Failed to test webhook"
             });
+        } finally {
+            setTestingWebhook(false);
         }
     };
 
-    const handleTestNotification = async (channel: string) => {
-        try {
-            const token = await getToken();
-            if (!token) throw new Error("No token");
-            await sendTestNotification(token, channel);
-            toast({
-                title: "Test Sent",
-                description: `Test notification sent via ${channel}`,
-            });
-        } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message || "Failed to send test notification",
-                variant: "destructive",
-            });
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
-            </div>
-        );
-    }
-
-    if (!settings) {
-        return (
-            <div className="text-center text-text-secondary py-12">
-                Failed to load notification settings
-            </div>
-        );
+    if (loading || !settings) {
+        return <div className="container mx-auto py-8">Loading...</div>;
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-                        Notification Settings
-                    </h2>
-                    <p className="text-text-secondary">
-                        Configure how you receive notifications
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => window.location.href = '/settings/notifications/history'}
-                    >
-                        View History
-                    </Button>
-                    <Button onClick={handleSave} disabled={saving}>
-                        {saving ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving...
-                            </>
-                        ) : (
-                            <>
-                                <Bell className="mr-2 h-4 w-4" />
-                                Save Settings
-                            </>
-                        )}
-                    </Button>
-                </div>
+        <div className="container mx-auto py-8 max-w-4xl">
+            <div className="mb-6">
+                <h1 className="text-3xl font-bold">Notification Settings</h1>
+                <p className="text-muted-foreground mt-2">
+                    Configure how you want to receive notifications
+                </p>
             </div>
 
-            {/* Telegram Configuration */}
-            <Card className="bg-cream-100 border-cream-200">
-                <CardHeader>
-                    <CardTitle>Telegram Notifications</CardTitle>
-                    <CardDescription>
-                        Receive instant notifications via Telegram
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {telegramStatus?.is_bound ? (
-                        <div className="space-y-4">
-                            <Alert className="bg-green-500/10 border-green-500/50">
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                <AlertDescription className="text-green-500">
-                                    Telegram is connected
-                                    {telegramStatus.username && ` (@${telegramStatus.username})`}
-                                </AlertDescription>
-                            </Alert>
+            <Tabs defaultValue="channels" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="channels">Channels</TabsTrigger>
+                    <TabsTrigger value="events">Event Types</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="channels" className="space-y-4">
+                    {/* Email */}
+                    <Card>
+                        <CardHeader>
                             <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <Label>Enable Telegram Notifications</Label>
-                                    <p className="text-sm text-text-secondary">
-                                        Receive notifications via Telegram
-                                    </p>
+                                <div className="flex items-center gap-3">
+                                    <Mail className="h-5 w-5" />
+                                    <div>
+                                        <CardTitle>Email Notifications</CardTitle>
+                                        <CardDescription>Receive notifications via email</CardDescription>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_email}
+                                    onCheckedChange={(checked) => updateSettings({ enable_email: checked })}
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                <Label>Email Address</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="your@email.com"
+                                    />
+                                    <Button
+                                        onClick={() => updateSettings({ email })}
+                                        disabled={saving}
+                                    >
+                                        Save
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Telegram */}
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Send className="h-5 w-5" />
+                                    <div>
+                                        <CardTitle>Telegram Notifications</CardTitle>
+                                        <CardDescription>Receive notifications via Telegram</CardDescription>
+                                    </div>
                                 </div>
                                 <Switch
                                     checked={settings.enable_telegram}
-                                    onCheckedChange={(checked) =>
-                                        setSettings({ ...settings, enable_telegram: checked })
-                                    }
+                                    onCheckedChange={(checked) => updateSettings({ enable_telegram: checked })}
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {settings.telegram_chat_id ? (
+                                <div className="flex items-center gap-2 text-sm text-green-600">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    <span>Connected as @{settings.telegram_username}</span>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground">
+                                    Not connected. Use /start command in Telegram bot to connect.
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Webhook */}
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Webhook className="h-5 w-5" />
+                                    <div>
+                                        <CardTitle>Webhook Notifications</CardTitle>
+                                        <CardDescription>Send notifications to a custom webhook URL</CardDescription>
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_webhook}
+                                    onCheckedChange={(checked) => updateSettings({ enable_webhook: checked })}
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Webhook URL</Label>
+                                <Input
+                                    type="url"
+                                    value={webhookUrl}
+                                    onChange={(e) => setWebhookUrl(e.target.value)}
+                                    placeholder="https://your-server.com/webhook"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Webhook Secret (Optional)</Label>
+                                <Input
+                                    type="password"
+                                    value={webhookSecret}
+                                    onChange={(e) => setWebhookSecret(e.target.value)}
+                                    placeholder="Secret for HMAC signature"
                                 />
                             </div>
                             <div className="flex gap-2">
                                 <Button
-                                    variant="outline"
-                                    onClick={() => handleTestNotification("telegram")}
+                                    onClick={() => updateSettings({ webhook_url: webhookUrl, webhook_secret: webhookSecret })}
+                                    disabled={saving}
                                 >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    Send Test
+                                    Save Webhook
                                 </Button>
                                 <Button
-                                    variant="destructive"
-                                    onClick={handleUnbindTelegram}
+                                    variant="outline"
+                                    onClick={testWebhook}
+                                    disabled={testingWebhook || !webhookUrl}
                                 >
-                                    Unbind Telegram
+                                    Test Webhook
                                 </Button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <Alert className="bg-yellow-500/10 border-yellow-500/50">
-                                <XCircle className="h-4 w-4 text-yellow-500" />
-                                <AlertDescription className="text-yellow-500">
-                                    Telegram is not connected
-                                </AlertDescription>
-                            </Alert>
-                            <Button onClick={handleBindTelegram}>
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Bind Telegram Account
-                            </Button>
-                            {bindUrl && (
-                                <Alert>
-                                    <AlertDescription>
-                                        <p className="mb-2">Click the link below to bind your Telegram:</p>
-                                        <a
-                                            href={bindUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-brand hover:underline"
-                                        >
-                                            {bindUrl}
-                                        </a>
-                                    </AlertDescription>
+                            {webhookTestResult && (
+                                <Alert variant={webhookTestResult.success ? "default" : "destructive"}>
+                                    {webhookTestResult.success ? (
+                                        <CheckCircle2 className="h-4 w-4" />
+                                    ) : (
+                                        <XCircle className="h-4 w-4" />
+                                    )}
+                                    <AlertDescription>{webhookTestResult.message}</AlertDescription>
                                 </Alert>
                             )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-            {/* Email Configuration */}
-            <Card className="bg-cream-100 border-cream-200">
-                <CardHeader>
-                    <CardTitle>Email Notifications</CardTitle>
-                    <CardDescription>
-                        Receive notifications via email
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            value={settings.email || ""}
-                            onChange={(e) =>
-                                setSettings({ ...settings, email: e.target.value })
-                            }
-                            placeholder="your@email.com"
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label>Enable Email Notifications</Label>
-                            <p className="text-sm text-text-secondary">
-                                Receive notifications via email
-                            </p>
-                        </div>
-                        <Switch
-                            checked={settings.enable_email}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enable_email: checked })
-                            }
-                        />
-                    </div>
-                    {settings.email && (
-                        <Button
-                            variant="outline"
-                            onClick={() => handleTestNotification("email")}
-                        >
-                            <Send className="mr-2 h-4 w-4" />
-                            Send Test Email
-                        </Button>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Event Preferences */}
-            <Card className="bg-cream-100 border-cream-200">
-                <CardHeader>
-                    <CardTitle>Event Preferences</CardTitle>
-                    <CardDescription>
-                        Choose which events trigger notifications
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label>Deployment Success</Label>
-                            <p className="text-sm text-text-secondary">
-                                Notify when deployments succeed
-                            </p>
-                        </div>
-                        <Switch
-                            checked={settings.enable_deployment_success}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enable_deployment_success: checked })
-                            }
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label>Deployment Failure</Label>
-                            <p className="text-sm text-zinc-500">
-                                Notify when deployments fail
-                            </p>
-                        </div>
-                        <Switch
-                            checked={settings.enable_deployment_failure}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enable_deployment_failure: checked })
-                            }
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label>Instance Down</Label>
-                            <p className="text-sm text-zinc-500">
-                                Notify when instances go down
-                            </p>
-                        </div>
-                        <Switch
-                            checked={settings.enable_instance_down}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enable_instance_down: checked })
-                            }
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label>Cost Alerts</Label>
-                            <p className="text-sm text-zinc-500">
-                                Notify when costs exceed threshold
-                            </p>
-                        </div>
-                        <Switch
-                            checked={settings.enable_cost_alert}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enable_cost_alert: checked })
-                            }
-                        />
-                    </div>
-                    {settings.enable_cost_alert && (
-                        <div className="space-y-2 pl-6">
-                            <Label htmlFor="threshold">Cost Alert Threshold ($)</Label>
-                            <Input
-                                id="threshold"
-                                type="number"
-                                step="0.01"
-                                value={settings.cost_alert_threshold}
-                                onChange={(e) =>
-                                    setSettings({
-                                        ...settings,
-                                        cost_alert_threshold: parseFloat(e.target.value) || 0,
-                                    })
-                                }
-                            />
-                        </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label>Price Changes</Label>
-                            <p className="text-sm text-zinc-500">
-                                Notify when GPU prices change significantly
-                            </p>
-                        </div>
-                        <Switch
-                            checked={settings.enable_price_change}
-                            onCheckedChange={(checked) =>
-                                setSettings({ ...settings, enable_price_change: checked })
-                            }
-                        />
-                    </div>
-                </CardContent>
-            </Card>
+                <TabsContent value="events" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Event Notifications</CardTitle>
+                            <CardDescription>Choose which events trigger notifications</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Deployment Success</div>
+                                    <div className="text-sm text-muted-foreground">When a deployment starts successfully</div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_deployment_success}
+                                    onCheckedChange={(checked) => updateSettings({ enable_deployment_success: checked })}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Deployment Failure</div>
+                                    <div className="text-sm text-muted-foreground">When a deployment fails to start</div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_deployment_failure}
+                                    onCheckedChange={(checked) => updateSettings({ enable_deployment_failure: checked })}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Instance Down</div>
+                                    <div className="text-sm text-muted-foreground">When an instance becomes unhealthy</div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_instance_down}
+                                    onCheckedChange={(checked) => updateSettings({ enable_instance_down: checked })}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Cost Alerts</div>
+                                    <div className="text-sm text-muted-foreground">When costs exceed thresholds</div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_cost_alert}
+                                    onCheckedChange={(checked) => updateSettings({ enable_cost_alert: checked })}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Price Changes</div>
+                                    <div className="text-sm text-muted-foreground">When GPU prices change significantly</div>
+                                </div>
+                                <Switch
+                                    checked={settings.enable_price_change}
+                                    onCheckedChange={(checked) => updateSettings({ enable_price_change: checked })}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

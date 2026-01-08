@@ -13,8 +13,52 @@ from sqlmodel import Session, select
 from pydantic import BaseModel
 
 from app.core.db import get_session
-from app.core.auth import get_current_user
+from app.core.auth import verify_token
 from app.core.models import User, Deployment
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: Session = Depends(get_session)
+) -> User:
+    token = credentials.credentials
+    payload = verify_token(token, session)
+    
+    clerk_id = payload.get("sub")
+    if not clerk_id:
+        raise HTTPException(status_code=401, detail="Invalid token: missing sub")
+        
+    # Lazy User Creation / Sync
+    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
+    
+    if not user:
+        email = payload.get("email")
+        if not email:
+            email = f"{clerk_id}@clerk.user" 
+            
+        existing_email_user = session.exec(select(User).where(User.email == email)).first()
+        if existing_email_user:
+            existing_email_user.clerk_id = clerk_id
+            existing_email_user.auth_provider = "clerk"
+            session.add(existing_email_user)
+            session.commit()
+            session.refresh(existing_email_user)
+            return existing_email_user
+        
+        user = User(
+            email=email,
+            clerk_id=clerk_id,
+            auth_provider="clerk",
+            plan="free"
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        
+    return user
+
 from app.core.automation_models import (
     AutomationRule,
     AutomationLog,
@@ -449,3 +493,171 @@ async def get_user_cost_summary(
             for dep_id, cost in deployment_costs.items()
         ]
     }
+
+
+# ============================================================================
+# Phase 9 Week 3: Cost Limit Auto-Shutdown Endpoints
+# ============================================================================
+
+from app.core.automation_models import CostLimit, CostLimitPeriod
+from app.scheduler.cost_limit_manager import CostLimitManager
+
+
+class CostLimitCreate(BaseModel):
+    deployment_id: int
+    limit_amount: float
+    limit_period: str = "daily"  # daily, weekly, monthly, total
+    auto_shutdown_enabled: bool = True
+    notify_at_percentage: int = 80
+
+
+class CostLimitUpdate(BaseModel):
+    limit_amount: Optional[float] = None
+    limit_period: Optional[str] = None
+    auto_shutdown_enabled: Optional[bool] = None
+    notify_at_percentage: Optional[int] = None
+
+
+@router.get("/cost-limits")
+async def list_cost_limits(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """List all cost limit configurations for the current user."""
+    cost_limits = session.exec(
+        select(CostLimit).where(CostLimit.user_id == current_user.id)
+    ).all()
+    
+    return [
+        {
+            "id": cl.id,
+            "deployment_id": cl.deployment_id,
+            "limit_amount": cl.limit_amount,
+            "limit_period": cl.limit_period,
+            "current_cost": cl.current_cost,
+            "auto_shutdown_enabled": cl.auto_shutdown_enabled,
+            "notify_at_percentage": cl.notify_at_percentage,
+            "limit_reached": cl.limit_reached,
+            "last_notified_at": cl.last_notified_at.isoformat() if cl.last_notified_at else None,
+            "shutdown_at": cl.shutdown_at.isoformat() if cl.shutdown_at else None,
+            "created_at": cl.created_at.isoformat()
+        }
+        for cl in cost_limits
+    ]
+
+
+@router.post("/cost-limits")
+async def create_cost_limit(
+    cost_limit_data: CostLimitCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new cost limit configuration."""
+    # Verify deployment ownership
+    deployment = session.get(Deployment, cost_limit_data.deployment_id)
+    if not deployment or deployment.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    # Check if cost limit already exists
+    existing = session.exec(
+        select(CostLimit).where(CostLimit.deployment_id == cost_limit_data.deployment_id)
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Cost limit already exists for this deployment")
+    
+    # Create cost limit
+    cost_limit = CostLimit(
+        user_id=current_user.id,
+        deployment_id=cost_limit_data.deployment_id,
+        limit_amount=cost_limit_data.limit_amount,
+        limit_period=cost_limit_data.limit_period,
+        auto_shutdown_enabled=cost_limit_data.auto_shutdown_enabled,
+        notify_at_percentage=cost_limit_data.notify_at_percentage,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    
+    session.add(cost_limit)
+    session.commit()
+    session.refresh(cost_limit)
+    
+    return {
+        "id": cost_limit.id,
+        "deployment_id": cost_limit.deployment_id,
+        "limit_amount": cost_limit.limit_amount,
+        "limit_period": cost_limit.limit_period,
+        "created_at": cost_limit.created_at.isoformat()
+    }
+
+
+@router.put("/cost-limits/{cost_limit_id}")
+async def update_cost_limit(
+    cost_limit_id: int,
+    update_data: CostLimitUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a cost limit configuration."""
+    cost_limit = session.get(CostLimit, cost_limit_id)
+    if not cost_limit or cost_limit.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Cost limit not found")
+    
+    # Update fields
+    if update_data.limit_amount is not None:
+        cost_limit.limit_amount = update_data.limit_amount
+        cost_limit.limit_reached = False  # Reset if limit changed
+    
+    if update_data.limit_period is not None:
+        cost_limit.limit_period = update_data.limit_period
+    
+    if update_data.auto_shutdown_enabled is not None:
+        cost_limit.auto_shutdown_enabled = update_data.auto_shutdown_enabled
+    
+    if update_data.notify_at_percentage is not None:
+        cost_limit.notify_at_percentage = update_data.notify_at_percentage
+    
+    cost_limit.updated_at = datetime.utcnow()
+    session.add(cost_limit)
+    session.commit()
+    
+    return {"message": "Cost limit updated successfully"}
+
+
+@router.delete("/cost-limits/{cost_limit_id}")
+async def delete_cost_limit(
+    cost_limit_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a cost limit configuration."""
+    cost_limit = session.get(CostLimit, cost_limit_id)
+    if not cost_limit or cost_limit.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Cost limit not found")
+    
+    session.delete(cost_limit)
+    session.commit()
+    
+    return {"message": "Cost limit deleted successfully"}
+
+
+@router.get("/cost-limits/deployment/{deployment_id}/current")
+async def get_deployment_cost_status(
+    deployment_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get current cost status for a deployment."""
+    # Verify deployment ownership
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment or deployment.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    
+    # Get cost status
+    cost_limit_manager = CostLimitManager()
+    status = await cost_limit_manager.get_cost_status(deployment_id, session)
+    
+    if not status:
+        raise HTTPException(status_code=404, detail="No cost limit configured for this deployment")
+    
+    return status

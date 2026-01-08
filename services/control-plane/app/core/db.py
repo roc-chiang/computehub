@@ -3,7 +3,8 @@ from app.core.config import settings
 from app.core.models import (
     User, Deployment, TaskLog, Usage, DeploymentTemplate, 
     UserSubscription, SubscriptionEvent,
-    NotificationSettings, NotificationHistory  # Notification models
+    NotificationSettings, NotificationHistory,  # Notification models
+    TemplateCategory  # Template category enum
 )
 
 # Construct Database URL

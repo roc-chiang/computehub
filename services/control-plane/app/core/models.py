@@ -68,6 +68,12 @@ class Deployment(SQLModel, table=True):
     uptime_seconds: Optional[int] = None
     gpu_utilization: Optional[int] = None
     gpu_memory_utilization: Optional[int] = None
+    
+    # SSH Connection Info (for monitoring - Phase 12)
+    ssh_host: Optional[str] = None
+    ssh_port: Optional[int] = Field(default=22)
+    ssh_username: Optional[str] = Field(default="root")
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -336,9 +342,14 @@ class NotificationSettings(SQLModel, table=True):
     # Email settings
     email: Optional[str] = None
     
+    # Webhook settings (Phase 10)
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
+    
     # Channel toggles
     enable_telegram: bool = Field(default=True)
     enable_email: bool = Field(default=True)
+    enable_webhook: bool = Field(default=False)
     
     # Event toggles
     enable_deployment_success: bool = Field(default=True)
@@ -389,3 +400,67 @@ class GPUAvailabilityCache(SQLModel, table=True):
     regions: str  # JSON string array
     checked_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime
+
+
+# ============================================================================
+# Deployment Template System (Phase 13)
+# ============================================================================
+
+class TemplateCategory(str, Enum):
+    """Template categories"""
+    AI_INFERENCE = "ai-inference"
+    IMAGE_GENERATION = "image-generation"
+    DEV_ENVIRONMENT = "dev-environment"
+    DATA_SCIENCE = "data-science"
+    TRAINING = "training"
+    OTHER = "other"
+
+
+class DeploymentTemplate(SQLModel, table=True):
+    """Deployment templates for quick deployment creation"""
+    __tablename__ = "deployment_template"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[str] = Field(default=None, index=True)  # null = official template
+    
+    # Template info
+    name: str = Field(index=True)
+    description: Optional[str] = None
+    category: str = Field(default="other", index=True)  # Use string instead of Enum
+    
+    # Deployment configuration
+    image: str
+    gpu_type: str
+    gpu_count: int = 1
+    vcpu_count: Optional[int] = None
+    ram_gb: Optional[int] = None
+    storage_gb: Optional[int] = None
+    
+    # Runtime configuration
+    exposed_port: Optional[int] = None
+    env_vars_json: Optional[str] = None  # JSON string
+    
+    # Template metadata
+    is_official: bool = Field(default=False, index=True)
+    is_public: bool = Field(default=False, index=True)
+    usage_count: int = Field(default=0)
+    
+    # Icon/Image
+    icon_url: Optional[str] = None
+    preview_image_url: Optional[str] = None
+    
+    # Documentation
+    readme: Optional[str] = None  # Markdown
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+ 
+
+# ============================================================================
+# Phase 12: Real-time Monitoring System
+# ============================================================================
+
+from app.core.monitoring_models import MetricsSnapshot, MonitoringAlert
+

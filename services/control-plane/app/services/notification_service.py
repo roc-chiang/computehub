@@ -16,6 +16,7 @@ from app.core.models import (
 )
 from app.services.telegram_service import get_telegram_service
 from app.services.email_service import get_email_service
+from app.services.webhook_service import get_webhook_service
 import json
 
 class NotificationService:
@@ -25,6 +26,7 @@ class NotificationService:
         self.session = session
         self.telegram = get_telegram_service(session)
         self.email = get_email_service(session)
+        self.webhook = get_webhook_service(session)
     
     async def send_notification(
         self,
@@ -105,6 +107,27 @@ class NotificationService:
                 results['email'] = False
                 self._log_notification(
                     user_id, event_type, NotificationChannel.EMAIL,
+                    title, message, metadata,
+                    NotificationStatus.FAILED, str(e)
+                )
+        
+        # Send via Webhook
+        if settings.enable_webhook and settings.webhook_url:
+            try:
+                success = await self.webhook.send_notification(
+                    user_id, title, message, event_type.value, metadata
+                )
+                results['webhook'] = success
+                self._log_notification(
+                    user_id, event_type, NotificationChannel.WEBHOOK,
+                    title, message, metadata,
+                    NotificationStatus.SENT if success else NotificationStatus.FAILED
+                )
+            except Exception as e:
+                print(f"❌ Webhook error: {e}")
+                results['webhook'] = False
+                self._log_notification(
+                    user_id, event_type, NotificationChannel.WEBHOOK,
                     title, message, metadata,
                     NotificationStatus.FAILED, str(e)
                 )

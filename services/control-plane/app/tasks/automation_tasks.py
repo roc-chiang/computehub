@@ -164,15 +164,107 @@ def start_automation_tasks():
         replace_existing=True
     )
     
+    # Register Week 3 tasks (will be defined below)
+    # This will be called after the function is defined
+    
     # Start scheduler
     scheduler.start()
     print("[Scheduler] Automation tasks started successfully")
+    
+    # Register Week 3 tasks after scheduler starts
+    try:
+        register_week3_tasks()
+    except Exception as e:
+        print(f"[Scheduler] Warning: Could not register Week 3 tasks: {e}")
 
 
 def stop_automation_tasks():
+    """Stop all automation tasks"""
+    if scheduler.running:
+        scheduler.shutdown()
+        print("[Scheduler] Automation tasks stopped")
+
+
+# ============================================================================
+# Phase 9 Week 3: Cost Limit + Rule Engine Tasks
+# ============================================================================
+
+from app.scheduler.cost_limit_manager import CostLimitManager
+from app.scheduler.rule_engine import RuleEngine
+
+# Module instances
+cost_limit_manager = CostLimitManager()
+rule_engine = RuleEngine()
+
+
+async def cost_limit_check_task():
     """
-    Stop all automation background tasks.
+    Cost limit check task - runs every 10 minutes.
+    Checks all cost limits and triggers auto-shutdown if needed.
     """
-    print("[Scheduler] Stopping automation tasks...")
-    scheduler.shutdown()
-    print("[Scheduler] Automation tasks stopped")
+    print(f"[Task] Running cost limit check at {datetime.utcnow()}")
+    
+    try:
+        from app.main import get_provider_adapters
+        provider_adapters = get_provider_adapters()
+        
+        with next(get_session()) as session:
+            triggered_limits = await cost_limit_manager.check_cost_limits(
+                session, provider_adapters
+            )
+            if triggered_limits:
+                print(f"[Task] Cost limit check completed: {len(triggered_limits)} limits triggered")
+    except Exception as e:
+        print(f"[Task] Cost limit check failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+async def rule_engine_task():
+    """
+    Rule engine task - runs every 1 minute.
+    Processes all enabled automation rules.
+    """
+    print(f"[Task] Running rule engine at {datetime.utcnow()}")
+    
+    try:
+        from app.main import get_provider_adapters
+        provider_adapters = get_provider_adapters()
+        
+        with next(get_session()) as session:
+            execution_logs = await rule_engine.process_all_rules(
+                session, provider_adapters
+            )
+            if execution_logs:
+                print(f"[Task] Rule engine completed: {len(execution_logs)} rules executed")
+    except Exception as e:
+        print(f"[Task] Rule engine failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def register_week3_tasks():
+    """Register Phase 9 Week 3 tasks with the scheduler"""
+    print("[Scheduler] Registering Week 3 tasks...")
+    
+    # Cost limit check every 10 minutes
+    scheduler.add_job(
+        cost_limit_check_task,
+        trigger=IntervalTrigger(minutes=10),
+        id="cost_limit_check",
+        name="Cost Limit Check Task",
+        replace_existing=True
+    )
+    print("[Scheduler] ✓ Cost limit check task registered (every 10 minutes)")
+    
+    # Rule engine every 1 minute
+    scheduler.add_job(
+        rule_engine_task,
+        trigger=IntervalTrigger(minutes=1),
+        id="rule_engine",
+        name="Rule Engine Task",
+        replace_existing=True
+    )
+    print("[Scheduler] ✓ Rule engine task registered (every 1 minute)")
+    
+    print("[Scheduler] Week 3 tasks registered successfully")

@@ -37,7 +37,7 @@ export interface CreateTemplateRequest {
 }
 
 export async function getTemplates(): Promise<DeploymentTemplate[]> {
-    const res = await fetch(`${API_BASE_URL}/deployment-templates`, {
+    const res = await fetch(`${API_BASE_URL}/templates/my`, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch templates");
