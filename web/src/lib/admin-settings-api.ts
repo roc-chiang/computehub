@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://localhost:8000/api/v1";
+// Use absolute URL for API calls in production
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`;
 
 export interface SettingItem {
     key: string;
