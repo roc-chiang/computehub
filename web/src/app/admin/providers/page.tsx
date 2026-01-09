@@ -142,29 +142,7 @@ export default function ProvidersPage() {
         );
     }
 
-    if (!summary || summary.providers.length === 0) {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-                        Provider Management
-                    </h2>
-                    <p className="text-text-secondary">Monitor and analyze provider performance.</p>
-                </div>
-                <Card className="bg-cream-100 border-cream-200">
-                    <CardContent className="pt-6">
-                        <div className="text-center py-12">
-                            <Activity className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-                            <p className="text-text-secondary">No providers configured</p>
-                            <p className="text-sm text-zinc-600 mt-2">
-                                Add providers to see statistics and performance metrics
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    // Don't show early return for empty providers - show tabs so user can add providers
 
     const statusData = stats
         ? [
