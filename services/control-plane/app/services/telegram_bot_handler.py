@@ -1,12 +1,24 @@
 """
-Telegram Bot Handler
-Handles incoming Telegram bot commands and webhooks
+Telegram Bot Command Handler
+Handles /start and /bind commands for user binding
 """
 
 import logging
+import asyncio
 from datetime import datetime
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from typing import Optional
+
+try:
+    from telegram import Update
+    from telegram.ext import Application, CommandHandler, ContextTypes
+    TELEGRAM_AVAILABLE = True
+except ImportError:
+    TELEGRAM_AVAILABLE = False
+    Update = None
+    Application = None
+    CommandHandler = None
+    ContextTypes = None
+
 from sqlmodel import Session, select
 
 from app.core.db import get_session

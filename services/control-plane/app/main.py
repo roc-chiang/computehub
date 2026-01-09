@@ -29,10 +29,18 @@ async def on_startup():
     from app.core.db import init_db
     init_db()
     
-    # Start Telegram bot
-    import asyncio
-    from app.services.telegram_bot_handler import start_telegram_bot
-    app.state.telegram_bot = await start_telegram_bot()
+    # Start Telegram bot (optional)
+    try:
+        import asyncio
+        from app.services.telegram_bot_handler import start_telegram_bot, TELEGRAM_AVAILABLE
+        if TELEGRAM_AVAILABLE:
+            app.state.telegram_bot = await start_telegram_bot()
+        else:
+            print("⚠️ Telegram bot disabled (python-telegram-bot not installed)")
+            app.state.telegram_bot = None
+    except Exception as e:
+        print(f"⚠️ Failed to start Telegram bot: {e}")
+        app.state.telegram_bot = None
     
     # Start background scheduler for deployment status sync
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
