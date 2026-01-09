@@ -4,7 +4,7 @@
 
 import { getHeaders } from "./api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface CostSummary {
     total_all_time: number;
@@ -34,7 +34,7 @@ export interface CostBreakdown {
 }
 
 export async function getCostSummary(): Promise<CostSummary> {
-    const res = await fetch(`${API_BASE_URL}/costs/summary`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/costs/summary`, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch cost summary");
@@ -42,7 +42,7 @@ export async function getCostSummary(): Promise<CostSummary> {
 }
 
 export async function getCostTimeline(days: number = 30): Promise<TimelinePoint[]> {
-    const res = await fetch(`${API_BASE_URL}/costs/timeline?days=${days}`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/costs/timeline?days=${days}`, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch cost timeline");
@@ -50,7 +50,7 @@ export async function getCostTimeline(days: number = 30): Promise<TimelinePoint[
 }
 
 export async function getCostBreakdown(): Promise<CostBreakdown> {
-    const res = await fetch(`${API_BASE_URL}/costs/breakdown`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/costs/breakdown`, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch cost breakdown");
