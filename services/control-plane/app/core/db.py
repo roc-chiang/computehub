@@ -20,6 +20,11 @@ else:
 
 def init_db():
     SQLModel.metadata.create_all(engine)
+    
+    # Seed initial data
+    from app.core.seed_data import seed_database
+    with Session(engine) as session:
+        seed_database(session)
 
 def get_session():
     with Session(engine) as session:
