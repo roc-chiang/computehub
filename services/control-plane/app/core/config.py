@@ -2,13 +2,17 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "ComputeHub"
-    POSTGRES_SERVER: str
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
+
+    # Database
+    DATABASE_URL: str = None
+    
+    # PostgreSQL (optional, only if not using DATABASE_URL)
+    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "computehub"
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    DATABASE_URL: str = None
     
     # MinIO
     MINIO_ENDPOINT: str = "localhost:9000"
