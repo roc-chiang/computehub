@@ -45,7 +45,7 @@ export async function getTemplates(): Promise<DeploymentTemplate[]> {
 }
 
 export async function createTemplate(data: CreateTemplateRequest): Promise<DeploymentTemplate> {
-    const res = await fetch(`${API_BASE_URL}/deployment-templates`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/deployment-templates`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -58,7 +58,7 @@ export async function createTemplate(data: CreateTemplateRequest): Promise<Deplo
 }
 
 export async function updateTemplate(id: number, data: Partial<CreateTemplateRequest>): Promise<DeploymentTemplate> {
-    const res = await fetch(`${API_BASE_URL}/deployment-templates/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/deployment-templates/${id}`, {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -68,7 +68,7 @@ export async function updateTemplate(id: number, data: Partial<CreateTemplateReq
 }
 
 export async function deleteTemplate(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/deployment-templates/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/deployment-templates/${id}`, {
         method: "DELETE",
         headers: getHeaders(),
     });
