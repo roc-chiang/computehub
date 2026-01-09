@@ -6,8 +6,16 @@ Handles Telegram notifications and user binding
 import os
 import asyncio
 from typing import Optional
-from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+
+try:
+    from telegram import Bot, Update
+    from telegram.ext import Application, CommandHandler, ContextTypes
+    TELEGRAM_AVAILABLE = True
+except ImportError:
+    TELEGRAM_AVAILABLE = False
+    Bot = None
+    Update = None
+
 from sqlmodel import Session, select
 from app.core.models import NotificationSettings
 from app.core.encryption import decrypt_value
@@ -21,7 +29,7 @@ class TelegramService:
         self.bot_username = self._get_bot_username()
         self.bot: Optional[Bot] = None
         
-        if self.bot_token:
+        if TELEGRAM_AVAILABLE and self.bot_token:
             self.bot = Bot(token=self.bot_token)
     
     def _get_setting(self, key: str) -> Optional[str]:
