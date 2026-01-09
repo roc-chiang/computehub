@@ -83,7 +83,8 @@ export default function TemplatesPage() {
 
     const fetchOfficialTemplates = async () => {
         try {
-            const response = await fetch("/api/v1/templates/official");
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+            const response = await fetch(`${API_URL}/api/v1/templates/official`);
             if (response.ok) {
                 const data = await response.json();
                 setOfficialTemplates(data);
