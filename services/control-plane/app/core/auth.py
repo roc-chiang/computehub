@@ -1,6 +1,7 @@
 
 import jwt
 import requests
+import os
 from jwt.algorithms import RSAAlgorithm
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
@@ -9,19 +10,33 @@ from app.core.models import SystemSetting
 # Cache for JWKS keys to avoid fetching on every request
 _jwks_cache = {}
 
-def get_clerk_issuer(session: Session) -> str:
-    setting = session.get(SystemSetting, "CLERK_ISSUER_URL")
-    if not setting or not setting.value:
-        # Fallback for dev if not set, or raise error
-        # raising error helps dev realize they missed a step
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Authentication not configured (CLERK_ISSUER_URL missing)"
-        )
-    return setting.value
+def get_clerk_issuer() -> str:
+    """Get Clerk issuer URL from environment variable"""
+    # Try to get from CLERK_ISSUER_URL env var first
+    issuer = os.getenv("CLERK_ISSUER_URL")
+    
+    if not issuer:
+        # Try to construct from CLERK_SECRET_KEY
+        clerk_secret = os.getenv("CLERK_SECRET_KEY", "")
+        if clerk_secret.startswith("sk_test_"):
+            # Development key - use clerk.accounts.dev
+            issuer = "https://clerk.accounts.dev"
+        elif clerk_secret.startswith("sk_live_"):
+            # Production key - need to be configured
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="CLERK_ISSUER_URL environment variable required for production"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication not configured (CLERK_SECRET_KEY or CLERK_ISSUER_URL missing)"
+            )
+    
+    return issuer
 
 def verify_token(token: str, session: Session) -> dict:
-    issuer = get_clerk_issuer(session)
+    issuer = get_clerk_issuer()
     jwks_url = f"{issuer}/.well-known/jwks.json"
     
     try:
