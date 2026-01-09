@@ -213,28 +213,6 @@ class TicketReply(SQLModel, table=True):
     # Timestamp
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class DeploymentTemplate(SQLModel, table=True):
-    """User-created deployment templates for quick deployment creation"""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: str  # Clerk user ID
-    name: str
-    description: Optional[str] = None
-    
-    # Deployment configuration
-    gpu_type: str
-    gpu_count: int = 1
-    provider: Optional[str] = None  # Can be None for auto-selection
-    image: str
-    
-    # Optional configurations
-    vcpu_count: Optional[int] = None
-    ram_gb: Optional[int] = None
-    storage_gb: Optional[int] = None
-    env_vars: Optional[str] = None  # JSON string
-    
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
 
 # Subscription System Models
 
