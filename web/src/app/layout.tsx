@@ -21,11 +21,8 @@ import { DevQuickLogin } from "@/components/dev-quick-login";
 async function getClerkKey() {
   try {
     console.log("Fetching Clerk Key from backend...");
-    // Use internal backend service name for server-side rendering in Docker
-    // Client-side will use NEXT_PUBLIC_API_URL from environment
-    const backendUrl = typeof window === 'undefined'
-      ? (process.env.INTERNAL_API_URL || "http://backend:8000")
-      : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+    // Use backend service name in Docker, fallback to localhost for local dev
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
     const res = await fetch(`${backendUrl}/api/v1/admin/config/public`, { cache: "no-store" });
     if (!res.ok) {
       console.error("Failed to fetch Clerk key: Status", res.status);
