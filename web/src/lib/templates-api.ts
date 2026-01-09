@@ -4,7 +4,7 @@
 
 import { getHeaders } from "./api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface DeploymentTemplate {
     id: number;
@@ -37,7 +37,7 @@ export interface CreateTemplateRequest {
 }
 
 export async function getTemplates(): Promise<DeploymentTemplate[]> {
-    const res = await fetch(`${API_BASE_URL}/templates/my`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/templates/my`, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch templates");
