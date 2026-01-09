@@ -2,7 +2,7 @@
 export { TicketStatus, TicketPriority, TicketCategory } from "./admin-tickets-api";
 export type { TicketReply } from "./admin-tickets-api";
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // User-facing tickets API
 export interface CreateTicketRequest {
