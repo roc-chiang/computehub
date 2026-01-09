@@ -394,7 +394,7 @@ export default function ProvidersPage() {
                                             <SelectContent>
                                                 <SelectItem value="local">Local</SelectItem>
                                                 <SelectItem value="runpod">RunPod</SelectItem>
-                                                <SelectItem value="vastai">Vast.ai</SelectItem>
+                                                <SelectItem value="vast">Vast.ai</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
