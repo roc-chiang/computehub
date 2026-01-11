@@ -101,52 +101,89 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
     useEffect(() => {
         if (!terminal) return;
 
-        // TODO: Replace with actual WebSSH endpoint when backend is ready
-        // For now, show a message
-        terminal.writeln('⚠️  WebSSH backend not yet implemented');
-        terminal.writeln('');
-        terminal.writeln('Connection details:');
-        terminal.writeln(`  Host: ${sshHost || 'N/A'}`);
-        terminal.writeln(`  Port: ${sshPort || 'N/A'}`);
-        terminal.writeln(`  User: ${sshUsername || 'root'}`);
-        terminal.writeln('');
-        terminal.writeln('Use SSH client to connect manually for now.');
+        const connectWebSocket = async () => {
+            try {
+                // Get API URL from environment
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const wsUrl = API_URL.replace('http', 'ws');
 
-        // Uncomment when backend is ready:
-        /*
-        const websocket = new WebSocket(
-            `ws://localhost:8000/api/v1/deployments/${deploymentId}/ssh`
-        );
+                // Get auth token (if using Clerk)
+                // For development mode, token is optional
+                const url = `${wsUrl}/api/v1/deployments/${deploymentId}/terminal`;
 
-        websocket.onopen = () => {
-            setConnected(true);
-            terminal.writeln('✅ Connected!');
+                terminal.writeln('Connecting to deployment...');
+
+                const websocket = new WebSocket(url);
+
+                websocket.onopen = () => {
+                    setConnected(true);
+                    terminal.writeln('✅ Connected!');
+                    terminal.writeln('');
+                };
+
+                websocket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+
+                        if (message.type === 'output') {
+                            terminal.write(message.data);
+                        } else if (message.type === 'error') {
+                            terminal.writeln(`\r\n❌ Error: ${message.message}`);
+                            setError(message.message);
+                        } else if (message.type === 'connected') {
+                            terminal.writeln(`✅ ${message.message}`);
+                            terminal.writeln('');
+                        }
+                    } catch (e) {
+                        // If not JSON, treat as raw data
+                        terminal.write(event.data);
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    setError("Connection failed");
+                    terminal.writeln('\r\n❌ Connection error');
+                };
+
+                websocket.onclose = () => {
+                    setConnected(false);
+                    terminal.writeln('\r\n🔌 Connection closed');
+                };
+
+                // Send user input to server
+                terminal.onData((data: string) => {
+                    if (websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(JSON.stringify({
+                            type: 'input',
+                            data: data
+                        }));
+                    }
+                });
+
+                // Send terminal resize events
+                terminal.onResize((size: { cols: number; rows: number }) => {
+                    if (websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(JSON.stringify({
+                            type: 'resize',
+                            cols: size.cols,
+                            rows: size.rows
+                        }));
+                    }
+                });
+
+                setWs(websocket);
+
+                return () => {
+                    websocket.close();
+                };
+            } catch (err) {
+                console.error('WebSocket connection error:', err);
+                terminal.writeln(`\r\n❌ Failed to connect: ${err}`);
+                setError('Connection failed');
+            }
         };
 
-        websocket.onmessage = (event) => {
-            terminal.write(event.data);
-        };
-
-        websocket.onerror = (error) => {
-            setError("Connection failed");
-            terminal.writeln('\r\n❌ Connection error');
-        };
-
-        websocket.onclose = () => {
-            setConnected(false);
-            terminal.writeln('\r\n🔌 Connection closed');
-        };
-
-        terminal.onData((data: string) => {
-            websocket.send(data);
-        });
-
-        setWs(websocket);
-
-        return () => {
-            websocket.close();
-        };
-        */
+        connectWebSocket();
     }, [terminal, deploymentId]);
 
     // Handle resize
