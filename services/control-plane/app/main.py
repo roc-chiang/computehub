@@ -132,7 +132,7 @@ from app.api.v1 import (
     tickets_admin, tickets, providers_stats, providers_crud, public_pricing,
     user_providers, costs, deployment_templates, subscriptions, notifications,
     availability, user_profile, logs, metrics, automation, advanced_automation, rules,
-    stripe_webhook, templates, monitoring
+    stripe_webhook, templates, monitoring, terminal
 )
 
 # Public endpoints (no auth required)
@@ -151,6 +151,7 @@ app.include_router(availability.router, prefix="/api/v1", tags=["availability"])
 app.include_router(user_profile.router, prefix="/api/v1", tags=["user-profile"])
 app.include_router(templates.router, prefix="/api/v1", tags=["templates"])
 app.include_router(monitoring.router, prefix="/api/v1", tags=["monitoring"])
+app.include_router(terminal.router, prefix="/api/v1", tags=["terminal"])
 
 # Protected endpoints
 app.include_router(deployments.router, prefix="/api/v1/deployments", tags=["deployments"])
