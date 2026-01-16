@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Info, Sparkles, Shield, Zap, Users, Building2 } from "lucide-react";
+import { Check, X, Info, Github, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,130 +18,121 @@ import {
 const plans = [
     {
         name: "Free",
-        icon: Zap,
+        icon: Github,
         price: "$0",
-        period: "/month",
-        description: "Pay-as-you-go for individuals",
-        features: {
-            "GPU Pricing": "Cost price + optional 5-7% service fee",
-            "Global GPU Access": true,
-            "Deployment Templates": "Basic",
-            "Log Retention": "24 hours",
-            "Concurrent Deployments": "1",
-            "Projects": "1",
-            "API Rate Limit": "Low",
-            "Smart Scheduling": false,
-            "Auto-Recovery": false,
-            "Priority Queue": false,
-            "Team Members": "1",
-            "SLA": false,
-            "Support": "Community",
-        },
-        cta: "Get Started",
-        ctaLink: "/signup",
+        period: "Forever",
+        description: "Open-source, self-hosted",
+        features: [
+            "Multi-provider management",
+            "Deployment dashboard",
+            "Price comparison",
+            "Organization & Projects",
+            "Basic templates",
+            "SSH access",
+            "Cost tracking",
+            "Community support"
+        ],
+        cta: "View on GitHub",
+        ctaLink: "https://github.com/roc-chiang/computehub",
         popular: false,
     },
     {
         name: "Pro",
         icon: Sparkles,
-        price: "$29",
-        period: "/month",
-        description: "For developers & researchers",
-        features: {
-            "GPU Pricing": "Cost price + optional 5-7% service fee",
-            "Global GPU Access": true,
-            "Deployment Templates": "All templates",
-            "Log Retention": "30 days",
-            "Concurrent Deployments": "5",
-            "Projects": "Unlimited",
-            "API Rate Limit": "High",
-            "Smart Scheduling": true,
-            "Auto-Recovery": true,
-            "Priority Queue": true,
-            "Team Members": "1",
-            "SLA": false,
-            "Support": "Priority (24h)",
-        },
-        cta: "Start Free Trial",
-        ctaLink: "/signup?plan=pro",
+        price: "$49",
+        period: "One-time payment",
+        description: "Unlock automation & notifications",
+        features: [
+            "Everything in Free, plus:",
+            "Automation engine",
+            "Auto-restart on failure",
+            "Cost limit auto-shutdown",
+            "Automation rules (IF-THEN)",
+            "Email notifications",
+            "Telegram notifications",
+            "Webhook integration",
+            "Advanced monitoring",
+            "Batch operations",
+            "Advanced templates",
+            "Email support"
+        ],
+        cta: "Buy Pro License",
+        ctaLink: "https://gumroad.com/l/computehub-pro",
         popular: true,
     },
+];
+
+const featureComparison = [
     {
-        name: "Team",
-        icon: Users,
-        price: "$149",
-        period: "/month",
-        description: "For AI teams & products",
-        features: {
-            "GPU Pricing": "Cost price + optional 5-7% service fee",
-            "Global GPU Access": true,
-            "Deployment Templates": "All + Custom",
-            "Log Retention": "90 days",
-            "Concurrent Deployments": "20",
-            "Projects": "Unlimited",
-            "API Rate Limit": "Very High",
-            "Smart Scheduling": true,
-            "Auto-Recovery": true,
-            "Priority Queue": true,
-            "Team Members": "10",
-            "SLA": "99.5%",
-            "Support": "Priority (12h)",
-        },
-        cta: "Contact Sales",
-        ctaLink: "/contact",
-        popular: false,
+        category: "Core Management", features: [
+            { name: "Multi-provider support", free: true, pro: true },
+            { name: "Deployment dashboard", free: true, pro: true },
+            { name: "Price comparison", free: true, pro: true },
+            { name: "Organization & Projects", free: true, pro: true },
+            { name: "Basic templates", free: true, pro: true },
+        ]
     },
     {
-        name: "Enterprise",
-        icon: Building2,
-        price: "$499",
-        period: "/month+",
-        description: "For compliance & scale",
-        features: {
-            "GPU Pricing": "Cost price + optional 5-7% service fee",
-            "Global GPU Access": true,
-            "Deployment Templates": "All + Custom + Private",
-            "Log Retention": "365 days",
-            "Concurrent Deployments": "Unlimited",
-            "Projects": "Unlimited",
-            "API Rate Limit": "Unlimited",
-            "Smart Scheduling": true,
-            "Auto-Recovery": true,
-            "Priority Queue": true,
-            "Team Members": "50+",
-            "SLA": "99.9%",
-            "Support": "24/7 Dedicated",
-        },
-        cta: "Contact Sales",
-        ctaLink: "/contact",
-        popular: false,
+        category: "Automation", features: [
+            { name: "Auto-restart on failure", free: false, pro: true },
+            { name: "Cost limit auto-shutdown", free: false, pro: true },
+            { name: "Automation rules (IF-THEN)", free: false, pro: true },
+        ]
+    },
+    {
+        category: "Notifications", features: [
+            { name: "Email notifications", free: false, pro: true },
+            { name: "Telegram notifications", free: false, pro: true },
+            { name: "Webhook integration", free: false, pro: true },
+        ]
+    },
+    {
+        category: "Advanced", features: [
+            { name: "Advanced monitoring", free: false, pro: true },
+            { name: "Batch operations", free: false, pro: true },
+            { name: "Advanced templates", free: false, pro: true },
+        ]
+    },
+    {
+        category: "Support", features: [
+            { name: "Community support", free: true, pro: true },
+            { name: "Email support", free: false, pro: true },
+        ]
     },
 ];
 
 const faqs = [
     {
-        question: "Do you mark up GPU prices?",
-        answer: "No. We use transparent pricing: GPU costs are always at provider cost price. We offer an optional 5-7% service fee for smart scheduling, auto-recovery, and infrastructure costs. You can disable this fee in settings and pay pure cost price."
+        question: "Is ComputeHub really free?",
+        answer: "Yes! ComputeHub is open-source and free forever. You can self-host it and use all core features at no cost. Pro features are optional and unlock with a one-time $49 license."
     },
     {
-        question: "Why should I subscribe to Pro/Team?",
-        answer: "Subscriptions provide massive value beyond GPU access: Smart scheduling saves 10-30% on costs, auto-recovery prevents training losses (saving hours or thousands of dollars), priority queues reduce wait times, and enhanced monitoring improves efficiency. Many teams subscribe to spend less time on infrastructure and more time coding."
+        question: "What's the difference between Free and Pro?",
+        answer: "Free includes all core management features. Pro adds automation (auto-restart, cost limits), notifications (Email, Telegram, Webhook), and advanced monitoring. Perfect for production workloads."
     },
     {
-        question: "Can I just run one model without subscribing?",
-        answer: "Absolutely! Use the Free tier with pay-as-you-go pricing. No subscription required, no credit card pre-authorization. Pay only for what you use. Upgrade to Pro if you need better stability, faster startup, or cost savings."
+        question: "Is this a subscription?",
+        answer: "No! Pro is a one-time $49 payment for lifetime access. No recurring fees, no monthly charges. Buy once, use forever."
     },
     {
-        question: "What's the difference between Team and Enterprise?",
-        answer: "Team is perfect for software teams and AI product development (10 members, 99.5% SLA, basic compliance). Enterprise is for industries with strict compliance requirements like finance and healthcare (data residency, 99.9% SLA, private nodes, VPC isolation, 24/7 support)."
+        question: "How do I activate Pro features?",
+        answer: "After purchasing, you'll receive a license key. Enter it in your self-hosted ComputeHub instance under Settings → License. Pro features unlock immediately."
     },
     {
-        question: "What if I don't need Canada-based nodes?",
-        answer: "Canada is our sovereignty core for compliance. You can still use the cheapest GPUs globally, but Enterprise customers can choose to run only in Canada for stronger compliance (PIPEDA, data sovereignty). This is critical for finance, healthcare, and government clients."
+        question: "Can I try Pro before buying?",
+        answer: "Yes! All Pro features are visible in the open-source code. You can review the implementation on GitHub before purchasing."
     },
     {
-        question: "Will prices increase in the future?",
-        answer: "We commit to transparent pricing with no hidden fees. Subscription prices are locked for ≥12 months. Any price changes will be announced at least 60 days in advance, and existing customers can choose to keep their original pricing."
+        question: "What if I need help?",
+        answer: "Free users get community support via GitHub Issues. Pro users get email support. We also offer paid consulting for custom deployments."
+    },
+    {
+        question: "Do you offer refunds?",
+        answer: "Pro licenses are sold 'as is' with no SLA. However, if you're not satisfied within 14 days, contact us for a refund."
+    },
+    {
+        question: "Will there be updates?",
+        answer: "Yes! We actively maintain ComputeHub. Pro license holders get all future updates for free."
     },
 ];
 
@@ -156,13 +147,13 @@ export default function PricingPage() {
                     <div className="container px-4 md:px-6">
                         <div className="text-center mb-16 space-y-4">
                             <Badge variant="secondary" className="px-4 py-2 text-sm rounded-full border-blue-500/20 bg-blue-500/10 text-blue-400">
-                                Transparent Pricing
+                                No Subscription • No Recurring Fees
                             </Badge>
                             <h1 className="text-4xl md:text-6xl font-bold tracking-tighter">
-                                Pay for experience,<br />not GPU access.
+                                Simple, Transparent Pricing
                             </h1>
                             <p className="text-xl text-muted-foreground max-w-[600px] mx-auto">
-                                GPU at cost price. Optional service fee. Subscriptions unlock automation, stability, and team features.
+                                Open-source forever. Optional Pro features with a one-time payment.
                             </p>
                         </div>
 
@@ -170,21 +161,20 @@ export default function PricingPage() {
                         <Alert className="max-w-3xl mx-auto mb-12 border-blue-500/20 bg-blue-500/10">
                             <Info className="h-4 w-4 text-blue-500" />
                             <AlertDescription>
-                                <strong>100% Transparent:</strong> GPU costs are always at provider cost price.
-                                Optional 5-7% service fee covers smart scheduling, auto-recovery, and infrastructure (can be disabled).
+                                <strong>100% Open Source:</strong> Self-host ComputeHub for free. Pro features unlock with a simple license key. No vendor lock-in, your data stays with you.
                             </AlertDescription>
                         </Alert>
 
                         {/* Pricing Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-20">
                             {plans.map((plan, index) => {
                                 const Icon = plan.icon;
                                 return (
                                     <Card
                                         key={index}
                                         className={`flex flex-col relative ${plan.popular
-                                                ? 'border-blue-500 shadow-lg shadow-blue-500/10 scale-105 z-10'
-                                                : 'border-zinc-800'
+                                            ? 'border-blue-500 shadow-lg shadow-blue-500/10 scale-105 z-10'
+                                            : 'border-zinc-800'
                                             }`}
                                     >
                                         {plan.popular && (
@@ -194,19 +184,30 @@ export default function PricingPage() {
                                             </Badge>
                                         )}
                                         <CardHeader>
-                                            <Icon className="h-8 w-8 mb-2 text-blue-500" />
-                                            <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                                            <Icon className="h-10 w-10 mb-4 text-blue-500" />
+                                            <CardTitle className="text-3xl">{plan.name}</CardTitle>
                                             <div className="mt-4 flex items-baseline">
-                                                <span className="text-4xl font-bold tracking-tighter">{plan.price}</span>
-                                                <span className="text-sm font-normal text-muted-foreground ml-1">{plan.period}</span>
+                                                <span className="text-5xl font-bold tracking-tighter">{plan.price}</span>
+                                                <span className="text-sm font-normal text-muted-foreground ml-2">{plan.period}</span>
                                             </div>
-                                            <CardDescription className="mt-2">{plan.description}</CardDescription>
+                                            <CardDescription className="mt-2 text-base">{plan.description}</CardDescription>
                                         </CardHeader>
+                                        <CardContent className="flex-1">
+                                            <ul className="space-y-3">
+                                                {plan.features.map((feature, i) => (
+                                                    <li key={i} className="flex items-start gap-2">
+                                                        <Check className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                                                        <span className="text-sm">{feature}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </CardContent>
                                         <CardFooter className="mt-auto">
-                                            <Link href={plan.ctaLink} className="w-full">
+                                            <Link href={plan.ctaLink} className="w-full" target="_blank">
                                                 <Button
                                                     className={`w-full ${plan.popular ? 'bg-blue-600 hover:bg-blue-500' : ''}`}
                                                     variant={plan.popular ? 'default' : 'outline'}
+                                                    size="lg"
                                                 >
                                                     {plan.cta}
                                                 </Button>
@@ -220,42 +221,33 @@ export default function PricingPage() {
                         {/* Feature Comparison Table */}
                         <div className="mb-20">
                             <h2 className="text-3xl font-bold text-center mb-12">Feature Comparison</h2>
-                            <div className="overflow-x-auto">
-                                <table className="w-full border-collapse">
-                                    <thead>
-                                        <tr className="border-b border-zinc-800">
-                                            <th className="text-left p-4 font-semibold">Feature</th>
-                                            {plans.map((plan) => (
-                                                <th key={plan.name} className="text-center p-4 font-semibold">
-                                                    {plan.name}
-                                                </th>
+                            <div className="max-w-3xl mx-auto">
+                                {featureComparison.map((category, idx) => (
+                                    <div key={idx} className="mb-8">
+                                        <h3 className="text-xl font-semibold mb-4 text-blue-400">{category.category}</h3>
+                                        <div className="space-y-2">
+                                            {category.features.map((feature, i) => (
+                                                <div key={i} className="grid grid-cols-3 gap-4 p-3 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+                                                    <div className="col-span-1 text-sm text-muted-foreground">{feature.name}</div>
+                                                    <div className="text-center">
+                                                        {feature.free ? (
+                                                            <Check className="h-5 w-5 text-blue-500 mx-auto" />
+                                                        ) : (
+                                                            <X className="h-5 w-5 text-zinc-600 mx-auto" />
+                                                        )}
+                                                    </div>
+                                                    <div className="text-center">
+                                                        {feature.pro ? (
+                                                            <Check className="h-5 w-5 text-blue-500 mx-auto" />
+                                                        ) : (
+                                                            <X className="h-5 w-5 text-zinc-600 mx-auto" />
+                                                        )}
+                                                    </div>
+                                                </div>
                                             ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Object.keys(plans[0].features).map((feature) => (
-                                            <tr key={feature} className="border-b border-zinc-800/50">
-                                                <td className="p-4 text-muted-foreground">{feature}</td>
-                                                {plans.map((plan) => {
-                                                    const value = plan.features[feature as keyof typeof plan.features];
-                                                    return (
-                                                        <td key={plan.name} className="text-center p-4">
-                                                            {typeof value === 'boolean' ? (
-                                                                value ? (
-                                                                    <Check className="h-5 w-5 text-blue-500 mx-auto" />
-                                                                ) : (
-                                                                    <X className="h-5 w-5 text-zinc-600 mx-auto" />
-                                                                )
-                                                            ) : (
-                                                                <span className="text-sm">{value}</span>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
@@ -278,19 +270,20 @@ export default function PricingPage() {
 
                         {/* CTA Section */}
                         <div className="text-center mt-20">
-                            <h3 className="text-2xl font-bold mb-4">Ready to get started?</h3>
+                            <h3 className="text-2xl font-bold mb-4">Ready to Deploy?</h3>
                             <p className="text-muted-foreground mb-8">
-                                Start with Free tier. Upgrade anytime.
+                                Start with the free version, upgrade when you need automation.
                             </p>
                             <div className="flex gap-4 justify-center">
-                                <Link href="/signup">
-                                    <Button size="lg" className="bg-blue-600 hover:bg-blue-500">
-                                        Get Started Free
+                                <Link href="https://github.com/roc-chiang/computehub" target="_blank">
+                                    <Button size="lg" variant="outline">
+                                        <Github className="h-5 w-5 mr-2" />
+                                        View on GitHub
                                     </Button>
                                 </Link>
-                                <Link href="/contact">
-                                    <Button size="lg" variant="outline">
-                                        Contact Sales
+                                <Link href="https://gumroad.com/l/computehub-pro" target="_blank">
+                                    <Button size="lg" className="bg-blue-600 hover:bg-blue-500">
+                                        Buy Pro License - $49
                                     </Button>
                                 </Link>
                             </div>

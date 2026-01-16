@@ -45,6 +45,11 @@ export default function Dashboard() {
 
         try {
             const token = await getToken();
+            if (!token) {
+                console.log("[Dashboard] No token available");
+                setLoading(false);
+                return;
+            }
             setAuthToken(token);
 
             const data = await getDeployments();

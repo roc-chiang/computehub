@@ -1,82 +1,107 @@
-# ComputeHub - Multi-Provider GPU Compute Platform
+# ComputeHub
 
-**Version**: v0.8.1  
-**Product Type**: SaaS Platform (Subscription-based)  
-**Core Value**: GPU Aggregation + Automation + Unified Management
+**Open-source GPU management platform for multi-cloud deployments**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Stars](https://img.shields.io/github/stars/roc-chiang/computehub?style=social)](https://github.com/roc-chiang/computehub)
 
 ---
 
 ## 🎯 What is ComputeHub?
 
-> **ComputeHub = Skyscanner for GPU + Cross-Cloud Orchestration**
+ComputeHub is an **open-source, self-hosted platform** that helps you manage GPU deployments across multiple cloud providers from a single dashboard.
 
-ComputeHub is a **management platform** that helps users:
-- 🔍 Find the cheapest GPU across multiple providers
-- 🎛️ Manage all GPU instances in one unified console
-- 🤖 Automate scheduling, failover, and cost optimization
+### Key Features
 
-### What We Are NOT
-- ❌ Not a GPU provider
-- ❌ Not charging for GPU usage
-- ❌ Not承担 GPU costs
-
-### What We ARE
-- ✅ **Management Platform** - Unified control panel for RunPod, Vast.ai, etc.
-- ✅ **Automation Tool** - Smart scheduling, auto-restart, cost alerts
-- ✅ **SaaS Subscription** - Users pay monthly for management features
+- 🔍 **Multi-Provider Support** - Deploy GPUs on RunPod, Vast.ai, and more
+- 💰 **Price Comparison** - Find the cheapest GPU across providers
+- 🎛️ **Unified Dashboard** - Manage all instances in one place
+- 🤖 **Automation** (Pro) - Auto-restart, cost limits, smart scheduling
+- 📊 **Real-time Monitoring** - GPU metrics, logs, and performance charts
+- 🔐 **Self-Hosted** - Your data stays on your servers
 
 ---
 
-## 💰 Business Model
+## 💡 Why ComputeHub?
 
-### Subscription Plans
-| Plan | Price | Features |
-|------|-------|----------|
-| **Free** | $0/month | 1 Provider, Basic management, Price comparison |
-| **Pro** | $49/month | 3 Providers, Automation, Notifications, Templates |
-| **Team** | $299/month | Unlimited Providers, Advanced automation, Team collaboration |
-| **Enterprise** | Custom | Compliance, Private deployment, Custom development |
+### The Problem
+Managing GPU deployments across multiple cloud providers is complex:
+- Fragmented dashboards for each provider
+- Manual cost tracking and forgotten instances
+- No automation for failures or cost overruns
+- Vendor lock-in
 
-### Revenue Model
-- Users pay ComputeHub for **management and automation services**
-- GPU costs are paid directly to providers (RunPod, Vast.ai, etc.)
-- High margin SaaS business (>80%)
+### The Solution
+ComputeHub provides:
+- ✅ **One dashboard** for all your GPU instances
+- ✅ **Open-source** - No vendor lock-in, modify as needed
+- ✅ **Self-hosted** - Full control over your data
+- ✅ **Optional Pro features** - Advanced automation for $49 lifetime
 
 ---
 
-## ✨ Key Features
+## 🚀 Quick Start
 
-### 🟢 Completed (v0.8.1)
-- ✅ Multi-provider deployment (RunPod, Vast.ai, Local)
-- ✅ Real-time price comparison
-- ✅ User authentication (Clerk)
-- ✅ Provider API key management (encrypted)
-- ✅ Deployment management (Create/Start/Stop/Delete)
-- ✅ Real-time logs viewer
-- ✅ Performance metrics charts (GPU/CPU/RAM)
-- ✅ Admin dashboard
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+
+- Python 3.11+
 
-### 🚧 In Progress
-- 🚧 Documentation reorganization
-- 🚧 Development roadmap
+### Installation
 
-### ⏳ Planned (Priority Order)
-1. **Automation Engine** (P0 - Core Moat)
-   - Health checks & auto-restart
-   - Cost-based auto-migration
-   - Cross-provider failover
-   
-2. **Notification System** (P0)
-   - Email, Telegram, Webhook
-   - Downtime, cost alerts
-   
-3. **Subscription System** (P1)
-   - Stripe integration
-   - Plan management
-   
-4. **Real-time Monitoring** (P1)
-   - GPU temperature, utilization
-   - WebSSH terminal
+1. **Clone the repository**
+```bash
+git clone https://github.com/roc-chiang/computehub.git
+cd computehub
+```
+
+2. **Start the backend**
+```bash
+cd services/control-plane
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+3. **Start the frontend**
+```bash
+cd web
+npm install
+npm run dev
+```
+
+4. **Access the application**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+---
+
+## 📦 What's Included
+
+### Free (Open Source)
+- Multi-provider GPU management
+- Deployment dashboard
+- Price comparison across providers
+- Organization & project management
+- Basic deployment templates
+- SSH access to instances
+- Cost tracking
+- Community support
+
+### Pro ($49 Lifetime)
+Unlock advanced automation features:
+- 🤖 Automation engine with IF-THEN rules
+- 🔄 Auto-restart on failure
+- 💰 Cost limit auto-shutdown
+- 📧 Email notifications
+- 📱 Telegram notifications
+- 🔗 Webhook integration
+- 📊 Advanced monitoring
+- ⚡ Batch operations
+- 🎨 Advanced templates (ComfyUI, SD WebUI, Llama)
+- ✉️ Email support
+
+[**Buy Pro License →**](https://gumroad.com/l/computehub-pro)
 
 ---
 
@@ -103,50 +128,6 @@ ComputeHub is a **management platform** that helps users:
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+
-- Python 3.11+
-
-### Local Development
-
-1. **Start Backend**
-```bash
-cd services/control-plane
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-2. **Start Frontend**
-```bash
-cd web
-npm install
-npm run dev
-```
-
-3. **Access Application**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
----
-
-## 📖 Documentation
-
-### Essential Docs (Must Read)
-- **[PRD.md](./PRD.md)** ⭐⭐⭐ - Product positioning and business model
-- **[Help.md](./Help.md)** ⭐⭐⭐ - Developer quick start guide
-- **[ROADMAP.md](./ROADMAP.md)** ⭐⭐⭐ - Development roadmap and priorities
-- **[DOCS_INDEX.md](./DOCS_INDEX.md)** - Complete documentation index
-
-### Additional Docs
-- [CHANGELOG.md](./CHANGELOG.md) - Version history
-- [backend.md](./backend.md) - Backend development plan
-
----
-
 ## 🎨 Tech Stack
 
 ### Frontend
@@ -167,61 +148,101 @@ npm run dev
 
 ---
 
-## 📊 Current Status
+## 📖 Documentation
 
-### Completed Features (70%)
-- ✅ Core infrastructure
-- ✅ Multi-provider support
-- ✅ Deployment management
-- ✅ Price comparison
-- ✅ Real-time monitoring
-
-### Next Priorities
-1. **Automation Engine** (2-3 weeks) - Core competitive advantage
-2. **Notification System** (1 week) - User experience
-3. **Subscription System** (1 week) - Monetization
-
----
-
-## 🎯 Success Metrics
-
-### User Growth
-- Month 3: 1000+ Free users
-- Month 6: 5-10% Pro conversion
-- Year 1: $50,000 MRR
-
-### Product Metrics
-- User retention: >60%
-- Pro feature usage: >80%
-- Auto-scheduling success: >95%
+- **[PRD.md](./PRD.md)** - Product requirements and roadmap
+- **[Help.md](./Help.md)** - Developer guide
+- **[DOCS_INDEX.md](./DOCS_INDEX.md)** - Complete documentation index
 
 ---
 
 ## 🤝 Contributing
 
-This is a private project. For questions or suggestions, please contact the development team.
+We welcome contributions! ComputeHub is open-source under the MIT License.
 
----
-
-## 📝 Important Notes
-
-### Core Principles
-```
-ComputeHub = Management Platform, NOT GPU Provider
-Revenue = Subscription Fees, NOT GPU Usage
-Value = Automation + Unified Management
-```
+### How to Contribute
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ### Development Guidelines
-1. Always refer to **PRD.md** for product positioning
-2. Check **ROADMAP.md** for current priorities
-3. Use **Help.md** for technical implementation
-4. All features must align with subscription-based SaaS model
+- Follow existing code style
+- Write tests for new features
+- Update documentation as needed
+- Keep commits atomic and well-described
 
 ---
 
-**Last Updated**: 2025-12-21  
-**Current Version**: v0.8.1  
-**Next Release**: v0.9.0 (Automation Engine)
+## 📝 License
 
-For detailed product requirements, see [PRD.md](./PRD.md)
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+### Pro License
+The Pro License is an optional add-on that unlocks advanced automation features. It is:
+- **One-time payment** ($49)
+- **Lifetime access** to all Pro features
+- **All future updates** included
+- **Non-transferable**
+
+Pro features are implemented in the open-source codebase but require a valid license key to activate.
+
+---
+
+## 🌟 Roadmap
+
+### ✅ Completed (v0.8)
+- Multi-provider deployment (RunPod, Vast.ai)
+- Real-time price comparison
+- Deployment management
+- Real-time logs and metrics
+- Organization & project support
+
+### 🚧 In Progress (v0.9)
+- License system implementation
+- Pro feature activation
+- Advanced automation engine
+
+### 📅 Planned (v1.0)
+- More provider integrations
+- Advanced monitoring dashboards
+- Team collaboration features
+- API improvements
+
+---
+
+## 👨‍💻 Author
+
+Created by **roc-chiang** - A technology enthusiast with experience across gaming, smart hardware, blockchain, and 3D digital humans.
+
+> "An idealistic thinker and a pragmatic doer — holding the line in compromise, staying flexible in persistence."
+
+- **GitHub**: [@roc-chiang](https://github.com/roc-chiang)
+- **X/Twitter**: [@rocchiang1](https://x.com/rocchiang1)
+- **LinkedIn**: [pengjiang8](https://www.linkedin.com/in/pengjiang8/)
+
+---
+
+## 💬 Community & Support
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/roc-chiang/computehub/issues)
+- **Discussions**: [Join the community](https://github.com/roc-chiang/computehub/discussions)
+- **Pro Support**: Email support for Pro license holders
+
+---
+
+## ⭐ Star History
+
+If you find ComputeHub useful, please consider giving it a star on GitHub!
+
+[![Star History Chart](https://api.star-history.com/svg?repos=roc-chiang/computehub&type=Date)](https://star-history.com/#roc-chiang/computehub&Date)
+
+---
+
+**Last Updated**: 2026-01-16  
+**Current Version**: v0.8.1  
+**License**: MIT  
+**Pro License**: $49 Lifetime
+
+[**Get Started**](https://github.com/roc-chiang/computehub) • [**Buy Pro**](https://gumroad.com/l/computehub-pro) • [**Documentation**](./DOCS_INDEX.md)

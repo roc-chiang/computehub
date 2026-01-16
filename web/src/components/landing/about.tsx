@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Shield, Brain, Key } from "lucide-react";
+import { ArrowRight, Shield, Brain, Key, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -17,18 +17,17 @@ export function About() {
                 {/* Problem Statement */}
                 <div className="max-w-4xl mx-auto space-y-6 mb-20">
                     <p className="homepage-body text-text-secondary text-center leading-relaxed">
-                        Running AI workloads today is fragile.
+                        Managing GPU deployments across multiple cloud providers is complex.
                         <br />
-                        You rent GPUs from different providers,
-                        deploy manually, forget to stop instances,
+                        You juggle different dashboards, forget to stop instances,
                         <br />
-                        and only notice the problem when the bill arrives.
+                        and struggle with cost control and automation.
                     </p>
 
                     <p className="homepage-h3 md:homepage-h3 homepage-h3-mobile text-text-primary text-center font-semibold">
-                        This isn't a performance problem.
+                        ComputeHub brings everything together
                         <br />
-                        It's a control problem.
+                        in one open-source platform.
                     </p>
                 </div>
 
@@ -36,20 +35,20 @@ export function About() {
                 <div className="max-w-4xl mx-auto bg-cream-50 border-2 border-brand/20 rounded-2xl p-8 md:p-12 mb-20">
                     <p className="homepage-body text-text-secondary leading-relaxed space-y-4">
                         <span className="block">
-                            ComputeHub <span className="text-text-primary font-semibold">does not sell compute</span>.
+                            ComputeHub is <span className="text-text-primary font-semibold">100% open-source</span>.
                         </span>
                         <span className="block">
-                            We <span className="text-text-primary font-semibold">don't hide your infrastructure</span>.
+                            We <span className="text-text-primary font-semibold">don't sell compute</span>.
                         </span>
                         <span className="block">
-                            We <span className="text-text-primary font-semibold">don't optimize behind a black box</span>.
+                            We <span className="text-text-primary font-semibold">don't lock you in</span>.
                         </span>
                     </p>
 
                     <p className="homepage-h3 md:homepage-h3 homepage-h3-mobile text-brand mt-8 font-semibold">
-                        We give you one control surface
+                        Self-host it, modify it, own it.
                         <br />
-                        to manage what already exists — safely.
+                        Your infrastructure, your control.
                     </p>
                 </div>
 
@@ -62,11 +61,11 @@ export function About() {
                                 <Shield className="h-6 w-6 text-brand" />
                             </div>
                             <h3 className="homepage-h3 md:homepage-h3 homepage-h3-mobile text-text-primary">
-                                Reduce Failure Cost
+                                Cost Control
                             </h3>
                             <p className="homepage-body text-text-secondary leading-relaxed">
-                                Auto-stop, budget caps, and clear visibility —
-                                so mistakes don't become disasters.
+                                Auto-stop, budget caps, and cost alerts —
+                                prevent runaway GPU bills.
                             </p>
                         </CardContent>
                     </Card>
@@ -78,11 +77,11 @@ export function About() {
                                 <Brain className="h-6 w-6 text-brand" />
                             </div>
                             <h3 className="homepage-h3 md:homepage-h3 homepage-h3-mobile text-text-primary">
-                                Lower Cognitive Load
+                                Automation
                             </h3>
                             <p className="homepage-body text-text-secondary leading-relaxed">
-                                You don't need to understand clouds, GPUs, or pricing models.
-                                Templates and guardrails do the boring work.
+                                Auto-restart on failure, rule-based automation,
+                                and smart notifications.
                             </p>
                         </CardContent>
                     </Card>
@@ -94,31 +93,76 @@ export function About() {
                                 <Key className="h-6 w-6 text-brand" />
                             </div>
                             <h3 className="homepage-h3 md:homepage-h3 homepage-h3-mobile text-text-primary">
-                                You Stay in Control
+                                Full Control
                             </h3>
                             <p className="homepage-body text-text-secondary leading-relaxed">
                                 Your accounts.
                                 <br />
                                 Your API keys.
                                 <br />
-                                Your infrastructure.
+                                Your data.
                                 <br />
                                 <br />
-                                We're the switchboard — not the owner.
+                                Self-hosted, no vendor lock-in.
                             </p>
                         </CardContent>
                     </Card>
                 </div>
 
+                {/* Our Story Section */}
+                <div className="max-w-4xl mx-auto bg-gradient-to-br from-brand-light to-cream-50 border-2 border-brand/20 rounded-2xl p-8 md:p-12 mb-12">
+                    <h3 className="homepage-h3 md:homepage-h3 homepage-h3-mobile text-text-primary mb-6 text-center">
+                        Our Story
+                    </h3>
+
+                    <div className="space-y-6">
+                        <p className="homepage-body text-text-secondary leading-relaxed">
+                            ComputeHub was created by <span className="text-text-primary font-semibold">roc-chiang</span>,
+                            a technology enthusiast with experience across gaming, smart hardware, blockchain, and 3D digital humans.
+                        </p>
+
+                        <div className="flex items-center justify-center gap-4 py-4">
+                            <a
+                                href="https://github.com/rocchiang1"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-brand/20 bg-cream-50 hover:bg-brand hover:text-white transition-colors"
+                            >
+                                <Github className="h-5 w-5" />
+                                <span className="font-medium">@rocchiang1</span>
+                            </a>
+                        </div>
+
+                        <blockquote className="border-l-4 border-brand pl-6 italic text-text-secondary">
+                            "An idealistic thinker and a pragmatic doer — holding the line in compromise,
+                            staying flexible in persistence. A long-term value advocate with an interesting soul."
+                        </blockquote>
+
+                        <p className="homepage-body text-text-secondary leading-relaxed">
+                            After managing GPU deployments across multiple projects, the pain points became clear:
+                            fragmented dashboards, manual cost tracking, and lack of automation.
+                            ComputeHub was born to solve these problems — not as a SaaS product,
+                            but as an <span className="text-text-primary font-semibold">open-source tool</span> that anyone can use and improve.
+                        </p>
+
+                        <p className="homepage-body text-text-secondary leading-relaxed">
+                            The project embraces the philosophy of <span className="text-text-primary font-semibold">building in public</span>
+                            and <span className="text-text-primary font-semibold">long-term value creation</span>.
+                            Free forever, with optional Pro features for those who need advanced automation.
+                        </p>
+                    </div>
+                </div>
+
                 {/* CTA */}
                 <div className="text-center">
-                    <Link href="/features">
+                    <Link href="https://github.com/roc-chiang/computehub" target="_blank">
                         <Button
                             variant="outline"
                             size="lg"
                             className="homepage-button-secondary px-8 h-12 border-brand text-brand bg-cream-50 hover:bg-brand hover:text-white transition-colors"
                         >
-                            Explore Core Features
+                            <Github className="mr-2 h-4 w-4" />
+                            View on GitHub
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     </Link>

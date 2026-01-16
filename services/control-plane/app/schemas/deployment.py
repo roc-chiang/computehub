@@ -10,6 +10,9 @@ class DeploymentCreate(BaseModel):
     image: str
     gpu_count: int = 1
     template_type: Optional[str] = None  # Template identifier (e.g., "image-generation")
+    # Team Collaboration (Phase 14+)
+    organization_id: Optional[int] = None
+    project_id: Optional[int] = None
 
 class DeploymentRead(BaseModel):
     id: int
@@ -34,5 +37,10 @@ class DeploymentRead(BaseModel):
     uptime_seconds: Optional[int] = None
     gpu_utilization: Optional[int] = None
     gpu_memory_utilization: Optional[int] = None
+    # Team Collaboration (Phase 14+)
+    organization_id: Optional[int] = None
+    project_id: Optional[int] = None
+    organization_name: Optional[str] = None
+    project_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime

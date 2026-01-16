@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Terminal as TerminalIcon, X, Maximize2, Minimize2 } from "lucide-react";
+import { Terminal as TerminalIcon, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
 // Note: xterm.js imports will be done dynamically to avoid SSR issues
 let Terminal: any;
@@ -25,6 +25,12 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
     const [connected, setConnected] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorType, setErrorType] = useState<string | null>(null);
+    const [connecting, setConnecting] = useState(false);
+    const [reconnectAttempt, setReconnectAttempt] = useState(0);
+    const maxReconnectAttempts = 3;
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
 
     // Load xterm.js dynamically
     useEffect(() => {
@@ -89,7 +95,6 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
 
         // Welcome message
         term.writeln('Welcome to WebSSH Terminal');
-        term.writeln('Connecting to deployment...');
         term.writeln('');
 
         return () => {
@@ -97,94 +102,153 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
         };
     }, [Terminal, FitAddon]);
 
-    // Connect WebSocket
+    // WebSocket connection function
+    const connectWebSocket = useCallback(async (attempt: number = 0) => {
+        if (!terminal) return;
+
+        // Clear any existing reconnect timeout
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+
+        // Close existing connection if any
+        if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+            wsRef.current.close();
+        }
+
+        try {
+            setConnecting(true);
+            setReconnectAttempt(attempt);
+
+            // Get API URL from environment
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const wsUrl = API_URL.replace('http', 'ws');
+            const url = `${wsUrl}/api/v1/deployments/${deploymentId}/terminal`;
+
+            if (attempt === 0) {
+                terminal.writeln('Connecting to deployment...');
+            } else {
+                terminal.writeln(`\r\nReconnecting (attempt ${attempt}/${maxReconnectAttempts})...`);
+            }
+
+            const websocket = new WebSocket(url);
+            wsRef.current = websocket;
+
+            websocket.onopen = () => {
+                setConnected(true);
+                setConnecting(false);
+                setError(null);
+                setErrorType(null);
+                setReconnectAttempt(0);
+                terminal.writeln('✅ Connected!');
+                terminal.writeln('');
+            };
+
+            websocket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type === 'output') {
+                        terminal.write(message.data);
+                    } else if (message.type === 'error') {
+                        const errorMsg = message.message || 'Unknown error';
+                        const errType = message.error_type || 'unknown';
+
+                        terminal.writeln(`\r\n❌ Error: ${errorMsg}`);
+                        setError(errorMsg);
+                        setErrorType(errType);
+
+                        // Show additional details if available
+                        if (message.details && Object.keys(message.details).length > 0) {
+                            console.error('[Terminal Error Details]', message.details);
+                        }
+                    } else if (message.type === 'connected') {
+                        terminal.writeln(`✅ ${message.message}`);
+                        terminal.writeln('');
+                    }
+                } catch (e) {
+                    // If not JSON, treat as raw data
+                    terminal.write(event.data);
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error('[WebSocket Error]', error);
+                setConnecting(false);
+            };
+
+            websocket.onclose = (event) => {
+                setConnected(false);
+                setConnecting(false);
+
+                if (!event.wasClean) {
+                    terminal.writeln('\r\n🔌 Connection lost');
+
+                    // Attempt to reconnect if not at max attempts
+                    if (attempt < maxReconnectAttempts) {
+                        const delay = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff: 1s, 2s, 4s, max 5s
+                        terminal.writeln(`Reconnecting in ${delay / 1000}s...`);
+
+                        reconnectTimeoutRef.current = setTimeout(() => {
+                            connectWebSocket(attempt + 1);
+                        }, delay);
+                    } else {
+                        terminal.writeln('\r\n❌ Maximum reconnection attempts reached');
+                        terminal.writeln('Click the reconnect button to try again');
+                        setError('Connection failed after multiple attempts');
+                    }
+                } else {
+                    terminal.writeln('\r\n🔌 Connection closed');
+                }
+            };
+
+            // Send user input to server
+            terminal.onData((data: string) => {
+                if (websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({
+                        type: 'input',
+                        data: data
+                    }));
+                }
+            });
+
+            // Send terminal resize events
+            terminal.onResize((size: { cols: number; rows: number }) => {
+                if (websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({
+                        type: 'resize',
+                        cols: size.cols,
+                        rows: size.rows
+                    }));
+                }
+            });
+
+            setWs(websocket);
+
+        } catch (err) {
+            console.error('WebSocket connection error:', err);
+            terminal.writeln(`\r\n❌ Failed to connect: ${err}`);
+            setError('Connection failed');
+            setConnecting(false);
+        }
+    }, [terminal, deploymentId, maxReconnectAttempts]);
+
+    // Connect on mount
     useEffect(() => {
         if (!terminal) return;
 
-        const connectWebSocket = async () => {
-            try {
-                // Get API URL from environment
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                const wsUrl = API_URL.replace('http', 'ws');
+        connectWebSocket();
 
-                // Get auth token (if using Clerk)
-                // For development mode, token is optional
-                const url = `${wsUrl}/api/v1/deployments/${deploymentId}/terminal`;
-
-                terminal.writeln('Connecting to deployment...');
-
-                const websocket = new WebSocket(url);
-
-                websocket.onopen = () => {
-                    setConnected(true);
-                    terminal.writeln('✅ Connected!');
-                    terminal.writeln('');
-                };
-
-                websocket.onmessage = (event) => {
-                    try {
-                        const message = JSON.parse(event.data);
-
-                        if (message.type === 'output') {
-                            terminal.write(message.data);
-                        } else if (message.type === 'error') {
-                            terminal.writeln(`\r\n❌ Error: ${message.message}`);
-                            setError(message.message);
-                        } else if (message.type === 'connected') {
-                            terminal.writeln(`✅ ${message.message}`);
-                            terminal.writeln('');
-                        }
-                    } catch (e) {
-                        // If not JSON, treat as raw data
-                        terminal.write(event.data);
-                    }
-                };
-
-                websocket.onerror = (error) => {
-                    setError("Connection failed");
-                    terminal.writeln('\r\n❌ Connection error');
-                };
-
-                websocket.onclose = () => {
-                    setConnected(false);
-                    terminal.writeln('\r\n🔌 Connection closed');
-                };
-
-                // Send user input to server
-                terminal.onData((data: string) => {
-                    if (websocket.readyState === WebSocket.OPEN) {
-                        websocket.send(JSON.stringify({
-                            type: 'input',
-                            data: data
-                        }));
-                    }
-                });
-
-                // Send terminal resize events
-                terminal.onResize((size: { cols: number; rows: number }) => {
-                    if (websocket.readyState === WebSocket.OPEN) {
-                        websocket.send(JSON.stringify({
-                            type: 'resize',
-                            cols: size.cols,
-                            rows: size.rows
-                        }));
-                    }
-                });
-
-                setWs(websocket);
-
-                return () => {
-                    websocket.close();
-                };
-            } catch (err) {
-                console.error('WebSocket connection error:', err);
-                terminal.writeln(`\r\n❌ Failed to connect: ${err}`);
-                setError('Connection failed');
+        return () => {
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
             }
         };
-
-        connectWebSocket();
-    }, [terminal, deploymentId]);
+    }, [terminal, connectWebSocket]);
 
     // Handle resize
     useEffect(() => {
@@ -205,7 +269,14 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
         }, 100);
     };
 
-    if (error) {
+    const handleManualReconnect = () => {
+        setError(null);
+        setErrorType(null);
+        setReconnectAttempt(0);
+        connectWebSocket(0);
+    };
+
+    if (error && !terminal) {
         return (
             <Card className="border-destructive">
                 <CardHeader>
@@ -232,9 +303,24 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
                         </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Badge variant={connected ? "default" : "secondary"}>
-                            {connected ? "Connected" : "Disconnected"}
+                        <Badge variant={connected ? "default" : connecting ? "secondary" : "destructive"}>
+                            {connected ? "Connected" : connecting ? "Connecting..." : "Disconnected"}
                         </Badge>
+                        {reconnectAttempt > 0 && (
+                            <Badge variant="outline">
+                                Retry {reconnectAttempt}/{maxReconnectAttempts}
+                            </Badge>
+                        )}
+                        {error && !connected && !connecting && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleManualReconnect}
+                            >
+                                <RefreshCw className="h-4 w-4 mr-1" />
+                                Reconnect
+                            </Button>
+                        )}
                         <Button
                             variant="ghost"
                             size="sm"

@@ -127,30 +127,7 @@ export default function GeneralSettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Subscription Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Subscription</CardTitle>
-                    <CardDescription>
-                        Your current plan and billing information
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium capitalize">
-                                {profile?.plan || "Free"} Plan
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {profile?.plan === "free" ? "1 Provider binding" : "Unlimited providers"}
-                            </p>
-                        </div>
-                        <Button asChild>
-                            <Link href="/settings/subscription">Upgrade</Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Subscription Card - REMOVED, migrating to License system */}
 
             {/* User Preferences Card */}
             <Card>

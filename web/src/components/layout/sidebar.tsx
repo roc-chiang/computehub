@@ -48,13 +48,14 @@ interface NavigationItem {
 
 const settingsSubmenu: SubmenuItem[] = [
     { name: "General", href: "/settings", icon: User },
+    { name: "Organizations", href: "/settings/organizations", icon: Users },
     { name: "Providers", href: "/settings/providers", icon: Cloud },
     { name: "API Keys", href: "/settings/api-keys", icon: Key },
     { name: "Automation", href: "/settings/automation", icon: Zap },
     { name: "Advanced Automation", href: "/settings/advanced-automation", icon: Sparkles, badge: "New" },
     { name: "Notifications", href: "/settings/notifications", icon: Bell },
     { name: "Templates", href: "/settings/templates", icon: BookTemplate },
-    { name: "Subscription", href: "/settings/subscription", icon: CreditCard },
+    // Subscription removed - migrating to License system
 ];
 
 const navigation: NavigationItem[] = [

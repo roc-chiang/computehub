@@ -101,38 +101,11 @@ DEFAULT_SETTINGS = {
         "is_secret": False
     },
     
-    # Stripe Payment Configuration
-    "stripe_secret_key": {
-        "value": "",
-        "description": "Stripe Secret Key (encrypted)",
-        "is_secret": True
-    },
-    "stripe_publishable_key": {
-        "value": "",
-        "description": "Stripe Publishable Key",
-        "is_secret": False
-    },
-    "stripe_webhook_secret": {
-        "value": "",
-        "description": "Stripe Webhook Secret (encrypted)",
-        "is_secret": True
-    },
-    "stripe_pro_price_id": {
-        "value": "",
-        "description": "Stripe Price ID for Pro plan",
-        "is_secret": False
-    },
-    "stripe_team_price_id": {
-        "value": "",
-        "description": "Stripe Price ID for Team plan",
-        "is_secret": False
-    },
-    "stripe_mode": {
-        "value": "test",
-        "description": "Stripe mode: test or live",
-        "is_secret": False
-    },
     
+    # Stripe Payment Configuration - REMOVED
+    # Migrating to License-based system
+    
+
     # Notification System Configuration
     "telegram_bot_token": {
         "value": "",

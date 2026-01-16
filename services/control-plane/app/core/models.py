@@ -74,6 +74,10 @@ class Deployment(SQLModel, table=True):
     ssh_port: Optional[int] = Field(default=22)
     ssh_username: Optional[str] = Field(default="root")
     
+    # Team Collaboration (Phase 14)
+    organization_id: Optional[int] = Field(default=None, foreign_key="organization.id", index=True)
+    project_id: Optional[int] = Field(default=None, foreign_key="project.id", index=True)
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -214,69 +218,10 @@ class TicketReply(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-# Subscription System Models
-
-class SubscriptionTier(str, Enum):
-    BASIC = "basic"
-    PRO = "pro"
-    ENTERPRISE = "enterprise"
-
-class SubscriptionStatus(str, Enum):
-    ACTIVE = "active"
-    CANCELED = "canceled"
-    PAST_DUE = "past_due"
-    TRIALING = "trialing"
-    INCOMPLETE = "incomplete"
-
-class SubscriptionEventType(str, Enum):
-    CREATED = "created"
-    UPGRADED = "upgraded"
-    DOWNGRADED = "downgraded"
-    CANCELED = "canceled"
-    RENEWED = "renewed"
-    TRIAL_STARTED = "trial_started"
-    TRIAL_ENDED = "trial_ended"
-
-class UserSubscription(SQLModel, table=True):
-    """User subscription information"""
-    __tablename__ = "user_subscriptions"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: str = Field(index=True, unique=True)  # Clerk user ID
-    tier: SubscriptionTier = Field(default=SubscriptionTier.BASIC)
-    
-    # Stripe fields
-    stripe_customer_id: Optional[str] = None
-    stripe_subscription_id: Optional[str] = Field(default=None, index=True)
-    stripe_price_id: Optional[str] = None
-    
-    # Status
-    status: SubscriptionStatus = Field(default=SubscriptionStatus.ACTIVE)
-    
-    # Billing period
-    current_period_start: Optional[datetime] = None
-    current_period_end: Optional[datetime] = None
-    cancel_at_period_end: bool = Field(default=False)
-    
-    # Trial
-    trial_end: Optional[datetime] = None
-    
-    # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-class SubscriptionEvent(SQLModel, table=True):
-    """Subscription change events log"""
-    __tablename__ = "subscription_events"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: str = Field(index=True)
-    event_type: SubscriptionEventType
-    from_tier: Optional[SubscriptionTier] = None
-    to_tier: Optional[SubscriptionTier] = None
-    stripe_event_id: Optional[str] = None
-    event_metadata: Optional[str] = None  # JSON string (renamed from metadata to avoid SQLModel conflict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+# ============================================================================
+# Subscription System Models - REMOVED
+# Migrating to License-based system
+# ============================================================================
 
 # ============================================================================
 # Notification System Models

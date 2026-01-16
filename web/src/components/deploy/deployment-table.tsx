@@ -183,6 +183,20 @@ export function DeploymentTable({ data, onDelete, showFilter = true }: Deploymen
                                         <Link href={`/deploy/${deploy.id}`} className="flex flex-col hover:underline">
                                             <span>{deploy.name}</span>
                                             <span className="text-xs text-muted-foreground font-mono">ID: {deploy.id}</span>
+                                            {(deploy.organization_name || deploy.project_name) && (
+                                                <div className="flex gap-1 mt-1">
+                                                    {deploy.organization_name && (
+                                                        <Badge variant="outline" className="text-xs">
+                                                            {deploy.organization_name}
+                                                        </Badge>
+                                                    )}
+                                                    {deploy.project_name && (
+                                                        <Badge variant="secondary" className="text-xs">
+                                                            {deploy.project_name}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            )}
                                         </Link>
                                     </TableCell>
                                     <TableCell>

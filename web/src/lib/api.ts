@@ -1,4 +1,5 @@
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`;
+console.log('[API] API_BASE_URL:', API_BASE_URL, 'NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
 
 let authToken: string | null = null;
 
@@ -34,6 +35,11 @@ export interface Deployment {
     uptime_seconds?: number;
     gpu_utilization?: number;
     gpu_memory_utilization?: number;
+    // Team Collaboration (Phase 14+)
+    organization_id?: number;
+    project_id?: number;
+    organization_name?: string;
+    project_name?: string;
     created_at: string;
 }
 
@@ -44,6 +50,9 @@ export interface DeploymentCreate {
     image: string;
     gpu_count: number;
     template_type?: string;
+    // Team Collaboration (Phase 14+)
+    organization_id?: number;
+    project_id?: number;
 }
 
 export async function getDeployments(): Promise<Deployment[]> {

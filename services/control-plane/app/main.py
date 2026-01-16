@@ -130,28 +130,28 @@ from app.api.v1 import (
     deployments, deployment_controls, admin, pricing, users, 
     deployments_admin, admin_stats, audit, settings as settings_router, 
     tickets_admin, tickets, providers_stats, providers_crud, public_pricing,
-    user_providers, costs, deployment_templates, subscriptions, notifications,
+    user_providers, costs, deployment_templates, notifications,
     availability, user_profile, logs, metrics, automation, advanced_automation, rules,
-    stripe_webhook, templates, monitoring, terminal
+    templates, monitoring, terminal, organizations, members, projects
 )
 
 # Public endpoints (no auth required)
 app.include_router(public_pricing.router, prefix="/api/v1", tags=["public"])
 
-# Stripe webhook (no auth - verified by signature)
-app.include_router(stripe_webhook.router, prefix="/api/v1", tags=["stripe"])
-
 # User endpoints (auth required)
 app.include_router(user_providers.router, prefix="/api/v1", tags=["user-providers"])
 app.include_router(costs.router, prefix="/api/v1/costs", tags=["costs"])
 app.include_router(deployment_templates.router, prefix="/api/v1", tags=["deployment-templates"])
-app.include_router(subscriptions.router, prefix="/api/v1", tags=["subscriptions"])
+# Subscriptions removed - migrating to License system
 app.include_router(notifications.router, prefix="/api/v1", tags=["notifications"])
 app.include_router(availability.router, prefix="/api/v1", tags=["availability"])
 app.include_router(user_profile.router, prefix="/api/v1", tags=["user-profile"])
 app.include_router(templates.router, prefix="/api/v1", tags=["templates"])
 app.include_router(monitoring.router, prefix="/api/v1", tags=["monitoring"])
 app.include_router(terminal.router, prefix="/api/v1", tags=["terminal"])
+app.include_router(organizations.router, prefix="/api/v1", tags=["organizations"])
+app.include_router(members.router, prefix="/api/v1", tags=["members"])
+app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
 
 # Protected endpoints
 app.include_router(deployments.router, prefix="/api/v1/deployments", tags=["deployments"])

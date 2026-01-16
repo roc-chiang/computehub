@@ -133,13 +133,12 @@ class TelegramService:
         """Get emoji for event type"""
         emoji_map = {
             "deployment_success": "✅",
-            "deployment_failure": "❌",
-            "instance_down": "⚠️",
-            "instance_recovered": "✅",
+            "deployment_failed": "❌",
+            "deployment_stopped": "⏸️",
+            "deployment_deleted": "🗑️",
             "cost_alert": "💰",
-            "price_change": "📊",
-            "subscription_expiring": "⏰",
-            "subscription_renewed": "🎉",
+            "provider_error": "⚠️",
+            # Subscription events removed - migrating to License system
         }
         return emoji_map.get(event_type, "📢")
     

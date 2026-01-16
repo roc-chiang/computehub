@@ -2,9 +2,9 @@ from sqlmodel import SQLModel, create_engine, Session
 from app.core.config import settings
 from app.core.models import (
     User, Deployment, TaskLog, Usage, DeploymentTemplate, 
-    UserSubscription, SubscriptionEvent,
     NotificationSettings, NotificationHistory,  # Notification models
     TemplateCategory  # Template category enum
+    # UserSubscription, SubscriptionEvent removed - migrating to License system
 )
 
 # Construct Database URL

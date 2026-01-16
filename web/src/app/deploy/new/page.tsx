@@ -24,6 +24,7 @@ import { TemplateGallery, Template } from "@/components/deploy/template-gallery"
 import { GPUSelector } from "@/components/deploy/gpu-selector";
 import { CostEstimator } from "@/components/deploy/cost-estimator";
 import { ImageSelector } from "@/components/deploy/image-selector";
+import { OrganizationProjectSelector } from "@/components/deploy/organization-project-selector";
 
 interface ProviderBinding {
     id: number;
@@ -55,6 +56,10 @@ export default function NewDeployment() {
     const [showSaveTemplate, setShowSaveTemplate] = useState(false);
     const [templateName, setTemplateName] = useState("");
     const [templateDescription, setTemplateDescription] = useState("");
+
+    // Team Collaboration state (Phase 14+)
+    const [organizationId, setOrganizationId] = useState<number | undefined>();
+    const [projectId, setProjectId] = useState<number | undefined>();
 
     // Fetch user's templates
     useEffect(() => {
@@ -99,6 +104,32 @@ export default function NewDeployment() {
         };
         fetchTemplates();
     }, [getToken, searchParams]);
+
+    // Load organization/project from URL params or localStorage
+    useEffect(() => {
+        const orgParam = searchParams?.get("organization");
+        const projParam = searchParams?.get("project");
+
+        if (orgParam) {
+            setOrganizationId(parseInt(orgParam));
+        } else {
+            // Try localStorage
+            const savedOrgId = localStorage.getItem("lastSelectedOrganization");
+            if (savedOrgId) {
+                setOrganizationId(parseInt(savedOrgId));
+            }
+        }
+
+        if (projParam) {
+            setProjectId(parseInt(projParam));
+        } else {
+            // Try localStorage
+            const savedProjId = localStorage.getItem("lastSelectedProject");
+            if (savedProjId) {
+                setProjectId(parseInt(savedProjId));
+            }
+        }
+    }, [searchParams]);
 
     // Fetch user's provider bindings
     useEffect(() => {
@@ -200,13 +231,23 @@ export default function NewDeployment() {
 
             setAuthToken(token);
 
+            // Save to localStorage for next time
+            if (organizationId) {
+                localStorage.setItem("lastSelectedOrganization", organizationId.toString());
+            }
+            if (projectId) {
+                localStorage.setItem("lastSelectedProject", projectId.toString());
+            }
+
             await createDeployment({
                 name,
                 provider,
                 gpu_type: gpuType,
                 image,
                 gpu_count: 1,
-                template_type: selectedTemplate || undefined
+                template_type: selectedTemplate || undefined,
+                organization_id: organizationId,
+                project_id: projectId
             });
 
 
@@ -351,9 +392,17 @@ export default function NewDeployment() {
                     <section className="space-y-4">
                         <div>
                             <Label className="text-lg font-semibold">3. Configuration Details</Label>
-                            <p className="text-sm text-text-secondary mt-1">Specify deployment name and Docker image</p>
+                            <p className="text-sm text-text-secondary mt-1">Specify deployment name, organization, project, and Docker image</p>
                         </div>
                         <div className="grid gap-4 p-6 border rounded-lg bg-card">
+                            {/* Organization/Project Selector */}
+                            <OrganizationProjectSelector
+                                organizationId={organizationId}
+                                projectId={projectId}
+                                onOrganizationChange={setOrganizationId}
+                                onProjectChange={setProjectId}
+                            />
+
                             <div className="space-y-2">
                                 <Label htmlFor="name">Deployment Name <span className="text-destructive">*</span></Label>
                                 <Input

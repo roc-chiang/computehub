@@ -17,8 +17,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDeployments, type Deployment } from "@/lib/api";
+import { getUserProfile, type UserProfile } from "@/lib/user-profile-api";
+// Subscription removed - migrating to License system
 import { getCostSummary, getCostTimeline } from "@/lib/costs-api";
-import { getCurrentSubscription, type Subscription } from "@/lib/subscription-api";
 import { setAuthToken } from "@/lib/api";
 import { StatusBadge } from "@/components/deploy/deployment-status";
 import { Badge } from "@/components/ui/badge";
@@ -27,9 +28,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [deployments, setDeployments] = useState<Deployment[]>([]);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [costSummary, setCostSummary] = useState<any>(null);
     const [costTimeline, setCostTimeline] = useState<any[]>([]);
-    const [subscription, setSubscription] = useState<Subscription | null>(null);
+    // const [subscription, setSubscription] = useState<Subscription | null>(null); // Removed
     const { getToken, isLoaded, isSignedIn } = useAuth();
     const { user } = useUser();
 
@@ -61,11 +63,11 @@ export default function DashboardPage() {
                 setAuthToken(token);
                 console.log('[Dashboard] Token set, making API calls...');
 
-                const [deploymentsData, summaryData, timelineData, subscriptionData] = await Promise.all([
+                const [deploymentsData, summaryData, timelineData] = await Promise.all([
                     getDeployments(),
                     getCostSummary(),
                     getCostTimeline(7), // Last 7 days
-                    getCurrentSubscription().catch(() => null) // Don't fail if subscription fetch fails
+                    // Subscription fetch removed
                 ]);
 
                 setDeployments(deploymentsData.sort((a, b) =>
@@ -73,7 +75,7 @@ export default function DashboardPage() {
                 ));
                 setCostSummary(summaryData);
                 setCostTimeline(timelineData);
-                setSubscription(subscriptionData);
+                // setSubscription(subscriptionData); // Removed
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error);
             } finally {

@@ -15,13 +15,13 @@ export function Footer() {
                             The next generation GPU aggregation platform for AI and ML workloads.
                         </p>
                         <div className="flex gap-4">
-                            <Link href="https://github.com" target="_blank" className="text-text-secondary hover:text-brand transition-colors">
+                            <Link href="https://github.com/roc-chiang" target="_blank" className="text-text-secondary hover:text-brand transition-colors">
                                 <Github className="h-5 w-5" />
                             </Link>
-                            <Link href="https://twitter.com" target="_blank" className="text-text-secondary hover:text-brand transition-colors">
+                            <Link href="https://x.com/rocchiang1" target="_blank" className="text-text-secondary hover:text-brand transition-colors">
                                 <Twitter className="h-5 w-5" />
                             </Link>
-                            <Link href="https://linkedin.com" target="_blank" className="text-text-secondary hover:text-brand transition-colors">
+                            <Link href="https://www.linkedin.com/in/pengjiang8/" target="_blank" className="text-text-secondary hover:text-brand transition-colors">
                                 <Linkedin className="h-5 w-5" />
                             </Link>
                         </div>

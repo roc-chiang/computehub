@@ -19,41 +19,54 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session: Session = Depends(get_session)
 ) -> User:
-    token = credentials.credentials
-    payload = verify_token(token, session)
-    
-    clerk_id = payload.get("sub")
-    if not clerk_id:
-        raise HTTPException(status_code=401, detail="Invalid token: missing sub")
+    print(f"[DEBUG] get_current_user called")
+    try:
+        token = credentials.credentials
+        print(f"[DEBUG] Token received: {token[:20]}...")
+        payload = verify_token(token, session)
+        print(f"[DEBUG] Token verified, payload: {payload}")
         
-    # Lazy User Creation / Sync
-    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
-    
-    if not user:
-        email = payload.get("email")
-        if not email:
-            email = f"{clerk_id}@clerk.user" 
+        clerk_id = payload.get("sub")
+        if not clerk_id:
+            print("[ERROR] Invalid token: missing sub")
+            raise HTTPException(status_code=401, detail="Invalid token: missing sub")
             
-        existing_email_user = session.exec(select(User).where(User.email == email)).first()
-        if existing_email_user:
-            existing_email_user.clerk_id = clerk_id
-            existing_email_user.auth_provider = "clerk"
-            session.add(existing_email_user)
+        # Lazy User Creation / Sync
+        user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
+        
+        if not user:
+            email = payload.get("email")
+            if not email:
+                email = f"{clerk_id}@clerk.user" 
+                
+            existing_email_user = session.exec(select(User).where(User.email == email)).first()
+            if existing_email_user:
+                existing_email_user.clerk_id = clerk_id
+                existing_email_user.auth_provider = "clerk"
+                session.add(existing_email_user)
+                session.commit()
+                session.refresh(existing_email_user)
+                print(f"[DEBUG] Updated existing user: {existing_email_user.email}")
+                return existing_email_user
+            
+            user = User(
+                email=email,
+                clerk_id=clerk_id,
+                auth_provider="clerk",
+                plan="free"
+            )
+            session.add(user)
             session.commit()
-            session.refresh(existing_email_user)
-            return existing_email_user
+            session.refresh(user)
+            print(f"[DEBUG] Created new user: {user.email}")
         
-        user = User(
-            email=email,
-            clerk_id=clerk_id,
-            auth_provider="clerk",
-            plan="free"
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-        
-    return user
+        print(f"[DEBUG] Returning user: {user.email}, id: {user.id}")
+        return user
+    except Exception as e:
+        print(f"[ERROR] get_current_user failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 @router.post("/", response_model=DeploymentRead)
 async def create_deployment(
@@ -101,6 +114,21 @@ async def create_deployment(
     port_config = get_template_port(deployment_in.template_type or "custom-docker")
     exposed_port = port_config["port"]
     
+    # Validate organization and project if provided
+    if deployment_in.project_id:
+        from app.core.team_models import Project
+        project = session.get(Project, deployment_in.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # If organization_id is provided, verify project belongs to it
+        if deployment_in.organization_id and project.organization_id != deployment_in.organization_id:
+            raise HTTPException(status_code=400, detail="Project does not belong to the specified organization")
+        
+        # Auto-set organization_id from project if not provided
+        if not deployment_in.organization_id:
+            deployment_in.organization_id = project.organization_id
+    
     deployment = Deployment(
         user_id=current_user.id,
         name=deployment_in.name,
@@ -110,7 +138,9 @@ async def create_deployment(
         image=deployment_in.image,
         template_type=deployment_in.template_type,
         exposed_port=exposed_port,
-        status=DeploymentStatus.CREATING
+        status=DeploymentStatus.CREATING,
+        organization_id=deployment_in.organization_id,
+        project_id=deployment_in.project_id
     )
     session.add(deployment)
     session.commit()
@@ -179,10 +209,43 @@ async def list_deployments(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    deployments = session.exec(select(Deployment).where(Deployment.user_id == current_user.id)).all()
+    try:
+        print(f"[DEBUG] list_deployments called for user: {current_user.email}, id: {current_user.id}, clerk_id: {current_user.clerk_id}")
+        
+        # Import team models for JOIN
+        from app.core.team_models import Organization, Project
+        
+        # Query deployments with organization and project names using LEFT JOIN
+        statement = (
+            select(Deployment, Organization.name, Project.name)
+            .where(Deployment.user_id == current_user.id)
+            .outerjoin(Organization, Deployment.organization_id == Organization.id)
+            .outerjoin(Project, Deployment.project_id == Project.id)
+        )
+        
+        results = session.exec(statement).all()
+        deployments_data = [
+            {
+                "deployment": deployment,
+                "organization_name": org_name,
+                "project_name": proj_name
+            }
+            for deployment, org_name, proj_name in results
+        ]
+        
+        print(f"[DEBUG] Found {len(deployments_data)} deployments")
+    except Exception as e:
+        print(f"[ERROR] Failed to list deployments: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to list deployments: {str(e)}")
     
     updated_deployments = []
-    for deployment in deployments:
+    for data in deployments_data:
+        deployment = data["deployment"]
+        org_name = data["organization_name"]
+        proj_name = data["project_name"]
+        
         if deployment.status in [DeploymentStatus.CREATING, DeploymentStatus.RUNNING] and deployment.instance_id:
             try:
                 adapter = ProviderManager.get_adapter(deployment.provider, session)
@@ -229,7 +292,37 @@ async def list_deployments(
             except Exception as e:
                 print(f"[ERROR] Failed to sync status: {str(e)}")
                 pass
-        updated_deployments.append(deployment)
+        
+        # Convert deployment to dict and add organization/project names
+        deployment_dict = {
+            "id": deployment.id,
+            "user_id": deployment.user_id,
+            "name": deployment.name,
+            "provider": deployment.provider,
+            "status": deployment.status,
+            "gpu_type": deployment.gpu_type,
+            "gpu_count": deployment.gpu_count,
+            "endpoint_url": deployment.endpoint_url,
+            "ssh_connection_string": deployment.ssh_connection_string,
+            "ssh_password": deployment.ssh_password,
+            "instance_id": deployment.instance_id,
+            "image": deployment.image,
+            "template_type": deployment.template_type,
+            "exposed_port": deployment.exposed_port,
+            "vcpu_count": deployment.vcpu_count,
+            "ram_gb": deployment.ram_gb,
+            "storage_gb": deployment.storage_gb,
+            "uptime_seconds": deployment.uptime_seconds,
+            "gpu_utilization": deployment.gpu_utilization,
+            "gpu_memory_utilization": deployment.gpu_memory_utilization,
+            "organization_id": deployment.organization_id,
+            "project_id": deployment.project_id,
+            "organization_name": org_name,
+            "project_name": proj_name,
+            "created_at": deployment.created_at,
+            "updated_at": deployment.updated_at
+        }
+        updated_deployments.append(deployment_dict)
         
     return updated_deployments
 
