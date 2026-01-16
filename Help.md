@@ -1,6 +1,23 @@
 # ComputeHub 启动指南
 
-这份文档会教你如何在本地电脑上启动 ComputeHub 的前后端。
+> **ComputeHub 是一个开源的 GPU 管理平台**  
+> 完全免费，自托管，可选 Pro License ($49 终身) 解锁自动化功能
+
+---
+
+## 🎯 项目简介
+
+ComputeHub 帮助您：
+- 🔍 在多个云提供商之间管理 GPU 实例
+- 💰 比较价格，找到最便宜的 GPU
+- 🎛️ 从一个控制台管理所有部署
+- 🤖 自动化调度和监控 (Pro 功能)
+
+**Free vs Pro**:
+- **Free (开源)**: 核心管理功能，价格对比，部署管理
+- **Pro ($49 终身)**: 自动化、通知、高级监控、批量操作
+
+---
 
 ## 📋 项目配置信息
 
@@ -12,6 +29,7 @@
 
 ### 端口
 - **后端 API**: `http://localhost:8000`
+- **API 文档**: `http://localhost:8000/docs`
 - **前端 Web**: `http://localhost:3000`
 
 ### 关键配置文件
@@ -40,7 +58,7 @@
 
 2.  **安装依赖库**：
     ```powershell
-    pip install fastapi uvicorn pydantic-settings sqlmodel psycopg2-binary redis rq requests cryptography python-telegram-bot aiosmtplib python-dateutil
+    pip install -r requirements.txt
     ```
 
 3.  **启动服务**：
@@ -85,6 +103,8 @@
 
 打开浏览器，访问：**http://localhost:3000**
 
+**API 文档**: http://localhost:8000/docs (FastAPI 自动生成的 API 文档)
+
 ---
 
 ## 5. 功能导航
@@ -99,7 +119,7 @@
 
 2. **Deployments** (`/deploy`) - 部署管理
    - 查看所有部署
-   - 批量操作
+   - 批量操作 (Pro 功能)
    - 启动/停止/删除
 
 3. **New Deployment** (`/deploy/new`) - 创建部署
@@ -126,6 +146,7 @@
 7. **Settings** (`/settings`) - 设置
    - Provider 绑定
    - API 密钥管理
+   - License 激活 (Pro 功能，开发中)
 
 ---
 
@@ -144,7 +165,7 @@
 3. 访问 `/settings/templates`
 4. 点击 "Use" 使用模板
 
-### 测试 3: 批量操作
+### 测试 3: 批量操作 (Pro 功能)
 1. 访问 `/deploy`
 2. 选择多个部署
 3. 点击 "Start" / "Stop" / "Delete"
@@ -172,6 +193,9 @@
 ### Q4: 部署创建失败？
 **A**: 确保已在 Settings 中绑定 Provider API 密钥。
 
+### Q5: 如何激活 Pro License？
+**A**: License 系统正在开发中 (v0.9.0)，完成后可在 `/settings/license` 激活。
+
 ---
 
 ## 8. 开发工具
@@ -179,9 +203,15 @@
 ### API 文档
 访问：`http://localhost:8000/docs`
 
+**特点**:
+- 自动生成的 API 文档
+- 可直接测试 API
+- 查看请求/响应格式
+
 ### 数据库
-- 类型：PostgreSQL
+- 类型：SQLite (开发) / PostgreSQL (生产)
 - 位置：根据 `.env` 配置
+- 工具：DB Browser for SQLite
 
 ### 环境变量
 后端 `.env` 文件位置：`services/control-plane/.env`
@@ -192,83 +222,56 @@
 
 ## 9. 已完成功能清单
 
-✅ Provider 绑定管理  
-✅ GPU 价格对比  
-✅ 成本追踪和分析  
-✅ 部署模板  
-✅ 批量操作  
-✅ Overview Dashboard  
-✅ 用户认证 (Clerk)  
-✅ 响应式设计  
+### ✅ 核心功能 (Free)
+- Provider 绑定管理
+- GPU 价格对比
+- 成本追踪和分析
+- 部署模板
+- Overview Dashboard
+- 用户认证 (Clerk)
+- 响应式设计
+- 组织/项目管理
+
+### 🔒 Pro 功能 (开发中)
+- 批量操作
+- 自动化引擎
+- 通知系统 (Email, Telegram, Webhook)
+- 高级监控
+- WebSSH 终端
 
 ---
 
 ## 10. 下一步开发
 
-查看 `NEXT_STEPS.md` 了解计划中的功能。
+查看 `ROADMAP.md` 了解开发计划：
+
+**当前重点** (v0.9.0):
+- License 系统开发
+- Pro 功能激活机制
+- 自动化引擎
 
 ---
 
-**需要帮助？** 查看项目文档或联系开发团队。🚀
-    npm install
-    ```
+## 11. 开源贡献
 
-4.  **启动网页**：
-    ```powershell
-    npm run dev
-    ```
+ComputeHub 是开源项目，欢迎贡献！
 
-    ✅ **成功标志**：看到 `Ready in ... ms` 和 `Local: http://localhost:3000`。
+### 如何贡献
+1. Fork 仓库
+2. 创建功能分支
+3. 提交 Pull Request
 
----
+### 贡献指南
+- 遵循现有代码风格
+- 为新功能编写测试
+- 更新相关文档
 
-## 4. 开始使用
-
-1.  打开浏览器，访问：[http://localhost:3000](http://localhost:3000)
-2.  点击 **"Start Deploying"** 或 **"Console"**。
-3.  点击 **"New Deployment"**。
-4.  随便填一个名字，Provider 选 **Local (Mock)**，点击 **Create Deployment**。
-5.  你应该能看到部署成功，状态会从 `creating` 变为 `running`。
+**GitHub**: https://github.com/roc-chiang/computehub  
+**License**: MIT (Core) + Pro License ($49 lifetime)
 
 ---
 
-## 常见问题
-
-*   **后端报错 `ModuleNotFoundError`**：请检查 `pip install` 是否成功。
-*   **前端报错 `fetch failed`**：请检查后端窗口是否还在运行，且端口是 8000。
-*   **Docker 方式**：如果你修好了 Docker，可以直接运行 `./scripts/dev_up.ps1` 一键启动所有服务。
-
----
-
-## 📊 项目当前状态 (2025-12-08)
-
-### ✅ 已完成功能
-
-1. **Provider Management (Provider 管理)** ⭐ 最新完成
-   - 后端 API: 统计、性能指标、CRUD 操作
-   - 前端页面: `/admin/providers` (4个标签页)
-     - Overview: 统计卡片 + 饼图
-     - Statistics: GPU使用趋势 + 成本趋势
-     - Comparison: Provider 对比表格
-     - Management: 添加/启用/禁用/删除 Provider
-   - 数据库: 已添加 `provider_id` 外键到 Deployment 表
-   - 审计日志: 所有 Provider 操作都会记录
-
-2. **Support Tickets (工单系统)**
-   - 完整的工单管理系统
-   - 管理员和用户界面
-
-3. **System Settings (系统设置)**
-   - 后端 API 完成
-   - 数据库模型完成
-
-### 🔄 待开发功能
-
-1. **Revenue Analytics (收入分析)** - 已规划但未开始
-2. **System Settings Frontend** - 后端完成，前端待集成
-3. **Provider Edit功能** - 当前只能删除后重新添加
-
-### 🔑 认证和权限系统
+## 🔑 认证和权限系统
 
 **认证方式**: Clerk (第三方认证服务)
 
@@ -286,29 +289,33 @@
 - 右下角 "Dev Login/Info" 按钮（仅开发环境）
 - 快速登录和查看用户信息
 
-### 📁 重要文件位置
+---
+
+## 📁 重要文件位置
 
 - **后端**: `services/control-plane/`
 - **前端**: `web/`
 - **数据库**: `services/control-plane/test.db` (SQLite)
 - **API 文档**: http://localhost:8000/docs (后端启动后访问)
+- **项目文档**: `PRD.md`, `ROADMAP.md`, `README.md`
 
-### 🔑 数据库信息
+---
 
-- 类型: SQLite
-- 文件: `test.db`
-- 位置: `services/control-plane/test.db`
-- 环境变量: `DATABASE_URL=sqlite:///./test.db`
-
-### 📚 技术栈
+## 📚 技术栈
 
 **后端:**
 - FastAPI + SQLModel
-- SQLite 数据库
+- SQLite (开发) / PostgreSQL (生产)
 - Pydantic for validation
+- Clerk JWT 认证
 
 **前端:**
-- Next.js (App Router)
+- Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS + shadcn/ui
 - Recharts (图表库)
+- Clerk 认证
+
+---
+
+**需要帮助？** 查看 [GitHub Issues](https://github.com/roc-chiang/computehub/issues) 或加入社区讨论。🚀
