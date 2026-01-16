@@ -10,10 +10,38 @@ from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title="ComputeHub Control Plane",
-    version="0.1.0",
+    title="ComputeHub API",
+    description="""
+## ComputeHub - Open-Source GPU Management Platform
+
+**Manage GPU deployments across multiple cloud providers from a single API.**
+
+### Features
+- 🔍 Multi-provider support (RunPod, Vast.ai)
+- 💰 Real-time price comparison
+- 🎛️ Unified deployment management
+- 📊 Performance monitoring
+- 🤖 Automation (Pro)
+
+### Links
+- **GitHub**: [roc-chiang/computehub](https://github.com/roc-chiang/computehub)
+- **Documentation**: [DOCS_INDEX.md](https://github.com/roc-chiang/computehub/blob/main/DOCS_INDEX.md)
+- **License**: MIT (Core) + Pro License ($49 lifetime)
+
+### Authentication
+Most endpoints require authentication via Clerk JWT token in the `Authorization` header.
+    """,
+    version="0.9.0",
     openapi_url="/api/v1/openapi.json",
     docs_url="/api/v1/docs",
+    contact={
+        "name": "roc-chiang",
+        "url": "https://github.com/roc-chiang",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
 )
 
 app.add_middleware(
