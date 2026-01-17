@@ -118,13 +118,17 @@ Unlock advanced automation features:
 │   Backend   │
 └──────┬──────┘
        │
-┌──────▼──────────────────────────┐
-│  Provider Adapters              │
-│  ├─ RunPod (GraphQL)           │
-│  ├─ Vast.ai (REST)             │
-│  └─ Local (Mock)               │
-└─────────────────────────────────┘
+       ├──────────────────────────────┐
+       │                              │
+┌──────▼──────────────────────┐  ┌───▼──────────┐
+│  Provider Adapters          │  │   License    │
+│  ├─ RunPod (GraphQL)       │  │   Server     │
+│  ├─ Vast.ai (REST)         │  │  (FastAPI)   │
+│  └─ Local (Mock)           │  └──────────────┘
+└─────────────────────────────┘
 ```
+
+**License Server**: Independent FastAPI service for Pro License verification and management.
 
 ---
 
@@ -152,6 +156,7 @@ Unlock advanced automation features:
 
 - **[PRD.md](./PRD.md)** - Product requirements and roadmap
 - **[Help.md](./Help.md)** - Developer guide
+- **[LICENSE_GUIDE.md](./LICENSE_GUIDE.md)** - Pro License management guide
 - **[DOCS_INDEX.md](./DOCS_INDEX.md)** - Complete documentation index
 
 ---
