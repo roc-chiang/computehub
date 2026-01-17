@@ -160,7 +160,7 @@ from app.api.v1 import (
     tickets_admin, tickets, providers_stats, providers_crud, public_pricing,
     user_providers, costs, deployment_templates, notifications,
     availability, user_profile, logs, metrics, automation, advanced_automation, rules,
-    templates, monitoring, terminal, organizations, members, projects
+    templates, monitoring, terminal, organizations, members, projects, license
 )
 
 # Public endpoints (no auth required)
@@ -180,6 +180,7 @@ app.include_router(terminal.router, prefix="/api/v1", tags=["terminal"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["organizations"])
 app.include_router(members.router, prefix="/api/v1", tags=["members"])
 app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
+app.include_router(license.router, prefix="/api/v1", tags=["license"])
 
 # Protected endpoints
 app.include_router(deployments.router, prefix="/api/v1/deployments", tags=["deployments"])

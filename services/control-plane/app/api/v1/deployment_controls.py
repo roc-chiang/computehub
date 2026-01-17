@@ -5,6 +5,7 @@ from app.core.models import Deployment, User, DeploymentStatus, ActivityLog, Not
 from app.api.v1.deployments import get_current_user
 from app.core.provider_manager import ProviderManager
 from app.services.notification_service import get_notification_service
+from app.core.decorators import require_pro_license
 
 router = APIRouter()
 
@@ -233,13 +234,14 @@ class BatchOperationResponse(BaseModel):
 
 
 @router.post("/batch/start", response_model=BatchOperationResponse)
+@require_pro_license
 async def batch_start_deployments(
     request: BatchOperationRequest,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Start multiple deployments at once
+    Start multiple deployments at once (Pro Feature)
     """
     success = []
     failed = []
@@ -278,13 +280,14 @@ async def batch_start_deployments(
 
 
 @router.post("/batch/stop", response_model=BatchOperationResponse)
+@require_pro_license
 async def batch_stop_deployments(
     request: BatchOperationRequest,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Stop multiple deployments at once
+    Stop multiple deployments at once (Pro Feature)
     """
     success = []
     failed = []
@@ -323,13 +326,14 @@ async def batch_stop_deployments(
 
 
 @router.post("/batch/delete", response_model=BatchOperationResponse)
+@require_pro_license
 async def batch_delete_deployments(
     request: BatchOperationRequest,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Delete multiple deployments at once
+    Delete multiple deployments at once (Pro Feature)
     """
     success = []
     failed = []

@@ -1,7 +1,14 @@
 "use client";
 
 import { SettingsProvider } from "@/contexts/settings-context";
+import { LicenseProvider } from "@/contexts/license-context";
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
-    return <SettingsProvider>{children}</SettingsProvider>;
+    return (
+        <SettingsProvider>
+            <LicenseProvider>
+                {children}
+            </LicenseProvider>
+        </SettingsProvider>
+    );
 }

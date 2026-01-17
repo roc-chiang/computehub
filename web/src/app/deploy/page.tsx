@@ -11,6 +11,9 @@ import { DeploymentTable } from "@/components/deploy/deployment-table";
 import { EmptyState } from "@/components/deploy/empty-state";
 import { DeploymentTableSkeleton } from "@/components/skeletons/deployment-table-skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useLicense } from "@/contexts/license-context";
+import { ProBadge } from "@/components/ui/pro-badge";
+import { UpgradePrompt } from "@/components/ui/upgrade-prompt";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -32,8 +35,10 @@ export default function Dashboard() {
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [batchAction, setBatchAction] = useState<"start" | "stop" | "delete" | null>(null);
     const [batchLoading, setBatchLoading] = useState(false);
+    const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
     const { getToken, isLoaded, isSignedIn, userId } = useAuth();
     const { toast } = useToast();
+    const { license } = useLicense();
 
     console.log(`[Dashboard] Auth State: Loaded=${isLoaded}, SignedIn=${isSignedIn}, User=${userId}`);
 
@@ -202,29 +207,53 @@ export default function Dashboard() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setBatchAction("start")}
+                            onClick={() => {
+                                if (!license.isProEnabled) {
+                                    setShowUpgradePrompt(true);
+                                } else {
+                                    setBatchAction("start");
+                                }
+                            }}
                             disabled={batchLoading}
+                            className="relative"
                         >
                             <Play className="h-4 w-4 mr-2" />
                             Start
+                            {!license.isProEnabled && <ProBadge className="ml-2" />}
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setBatchAction("stop")}
+                            onClick={() => {
+                                if (!license.isProEnabled) {
+                                    setShowUpgradePrompt(true);
+                                } else {
+                                    setBatchAction("stop");
+                                }
+                            }}
                             disabled={batchLoading}
+                            className="relative"
                         >
                             <Square className="h-4 w-4 mr-2" />
                             Stop
+                            {!license.isProEnabled && <ProBadge className="ml-2" />}
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setBatchAction("delete")}
+                            onClick={() => {
+                                if (!license.isProEnabled) {
+                                    setShowUpgradePrompt(true);
+                                } else {
+                                    setBatchAction("delete");
+                                }
+                            }}
                             disabled={batchLoading}
+                            className="relative"
                         >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
+                            {!license.isProEnabled && <ProBadge className="ml-2" />}
                         </Button>
                         <Button
                             variant="ghost"
@@ -281,17 +310,37 @@ export default function Dashboard() {
                 </>
             )}
 
+            {/* Upgrade Prompt Dialog */}
+            {showUpgradePrompt && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="max-w-2xl w-full">
+                        <UpgradePrompt
+                            feature="Batch Operations"
+                            description="Batch operations allow you to start, stop, or delete multiple deployments at once, saving you time and effort."
+                        />
+                        <div className="mt-4 text-center">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setShowUpgradePrompt(false)}
+                                className="text-white hover:text-white/80"
+                            >
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Batch Action Confirmation Dialog */}
             <AlertDialog open={batchAction !== null} onOpenChange={() => setBatchAction(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            {batchAction === "delete" ? "Delete" : batchAction === "start" ? "Start" : "Stop"} {selectedIds.size} Deployment(s)?
+                            Confirm Batch {batchAction === "start" ? "Start" : batchAction === "stop" ? "Stop" : "Delete"}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {batchAction === "delete"
-                                ? "This action cannot be undone. This will permanently delete the selected deployments."
-                                : `This will ${batchAction} all selected deployments.`}
+                            Are you sure you want to {batchAction} {selectedIds.size} deployment(s)?
+                            {batchAction === "delete" && " This action cannot be undone."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
