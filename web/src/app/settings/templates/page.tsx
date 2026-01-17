@@ -13,6 +13,9 @@ import { getTemplates, deleteTemplate, type DeploymentTemplate } from "@/lib/tem
 import { useAuth } from "@clerk/nextjs";
 import { setAuthToken } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useLicense } from "@/contexts/license-context";
+import { ProBadge } from "@/components/ui/pro-badge";
+import { UpgradePrompt } from "@/components/ui/upgrade-prompt";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -23,6 +26,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface OfficialTemplate {
     id: number;
@@ -34,6 +43,7 @@ interface OfficialTemplate {
     gpu_count: number;
     exposed_port: number | null;
     is_official: boolean;
+    is_pro: boolean;  // Pro License required
     usage_count: number;
 }
 
@@ -55,12 +65,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function TemplatesPage() {
+    const { license } = useLicense();
     const [userTemplates, setUserTemplates] = useState<DeploymentTemplate[]>([]);
     const [officialTemplates, setOfficialTemplates] = useState<OfficialTemplate[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+    const [selectedProTemplate, setSelectedProTemplate] = useState<OfficialTemplate | null>(null);
 
     const { getToken, isLoaded, isSignedIn } = useAuth();
     const { toast } = useToast();
@@ -193,10 +206,13 @@ export default function TemplatesPage() {
                                                         </Badge>
                                                     </div>
                                                 </div>
-                                                <Badge className="bg-blue-500">
-                                                    <Star className="h-3 w-3 mr-1" />
-                                                    Official
-                                                </Badge>
+                                                <div className="flex gap-1">
+                                                    <Badge className="bg-blue-500">
+                                                        <Star className="h-3 w-3 mr-1" />
+                                                        Official
+                                                    </Badge>
+                                                    {template.is_pro && <ProBadge />}
+                                                </div>
                                             </div>
                                         </CardHeader>
 
@@ -225,6 +241,13 @@ export default function TemplatesPage() {
                                             <Button
                                                 className="w-full"
                                                 onClick={() => {
+                                                    // Check if Pro template and user doesn't have Pro
+                                                    if (template.is_pro && !license.isProEnabled) {
+                                                        setSelectedProTemplate(template);
+                                                        setShowUpgradePrompt(true);
+                                                        return;
+                                                    }
+
                                                     // Redirect to /deploy/new with template info pre-filled
                                                     const params = new URLSearchParams({
                                                         from_template: 'official',
@@ -368,6 +391,19 @@ export default function TemplatesPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Pro Upgrade Dialog */}
+            <Dialog open={showUpgradePrompt} onOpenChange={setShowUpgradePrompt}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="sr-only">Upgrade to Pro</DialogTitle>
+                    </DialogHeader>
+                    <UpgradePrompt
+                        feature={selectedProTemplate?.name || "Advanced Templates"}
+                        description={`${selectedProTemplate?.name || "This template"} is a Pro feature. Unlock access to advanced templates including ComfyUI, Stable Diffusion WebUI, and more.`}
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

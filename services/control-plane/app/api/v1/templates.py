@@ -40,6 +40,7 @@ class TemplateResponse(BaseModel):
     exposed_port: Optional[int]
     is_official: bool
     is_public: bool
+    is_pro: bool  # Pro License required
     usage_count: int
     icon_url: Optional[str]
     preview_image_url: Optional[str]
@@ -131,6 +132,7 @@ async def list_templates(
             exposed_port=t.exposed_port,
             is_official=t.is_official,
             is_public=t.is_public,
+            is_pro=t.is_pro,
             usage_count=t.usage_count,
             icon_url=t.icon_url,
             preview_image_url=t.preview_image_url,
@@ -164,6 +166,7 @@ async def list_official_templates(
             exposed_port=t.exposed_port,
             is_official=t.is_official,
             is_public=t.is_public,
+            is_pro=t.is_pro,
             usage_count=t.usage_count,
             icon_url=t.icon_url,
             preview_image_url=t.preview_image_url,
@@ -198,6 +201,7 @@ async def list_my_templates(
             exposed_port=t.exposed_port,
             is_official=t.is_official,
             is_public=t.is_public,
+            is_pro=t.is_pro,
             usage_count=t.usage_count,
             icon_url=t.icon_url,
             preview_image_url=t.preview_image_url,

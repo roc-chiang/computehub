@@ -366,6 +366,7 @@ class DeploymentTemplate(SQLModel, table=True):
     # Template metadata
     is_official: bool = Field(default=False, index=True)
     is_public: bool = Field(default=False, index=True)
+    is_pro: bool = Field(default=False, index=True)  # Pro License required
     usage_count: int = Field(default=0)
     
     # Icon/Image
