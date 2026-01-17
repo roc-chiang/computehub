@@ -9,6 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Bell, Mail, Send, Webhook, CheckCircle2, XCircle } from "lucide-react";
+import { useLicense } from "@/contexts/license-context";
+import { UpgradePrompt } from "@/components/ui/upgrade-prompt";
+import { ProBadge } from "@/components/ui/pro-badge";
 
 interface NotificationSettings {
     telegram_chat_id: string | null;
@@ -28,6 +31,7 @@ interface NotificationSettings {
 }
 
 export default function NotificationsPage() {
+    const { license } = useLicense();
     const [settings, setSettings] = useState<NotificationSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -56,6 +60,9 @@ export default function NotificationsPage() {
                 setEmail(data.email || "");
                 setWebhookUrl(data.webhook_url || "");
                 setWebhookSecret(data.webhook_secret || "");
+            } else if (response.status === 403) {
+                // Pro feature not available
+                console.log("Pro License required for notifications");
             }
         } catch (error) {
             console.error("Failed to fetch settings:", error);
@@ -65,6 +72,9 @@ export default function NotificationsPage() {
     };
 
     const updateSettings = async (updates: Partial<NotificationSettings>) => {
+        if (!license.isProEnabled) {
+            return; // Silently fail if not Pro
+        }
         setSaving(true);
         try {
             const response = await fetch("/api/v1/notifications/settings", {
@@ -116,14 +126,43 @@ export default function NotificationsPage() {
         }
     };
 
-    if (loading || !settings) {
+    if (loading) {
+        return <div className="container mx-auto py-8">Loading...</div>;
+    }
+
+    // Show upgrade prompt if not Pro
+    if (!license.isProEnabled) {
+        return (
+            <div className="container mx-auto py-8 max-w-4xl">
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold flex items-center gap-2">
+                        Notification Settings
+                        <ProBadge />
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                        Configure how you want to receive notifications
+                    </p>
+                </div>
+
+                <UpgradePrompt
+                    feature="Notification System"
+                    description="Get instant alerts via Email, Telegram, and Webhooks for deployments, failures, and cost alerts."
+                />
+            </div>
+        );
+    }
+
+    if (!settings) {
         return <div className="container mx-auto py-8">Loading...</div>;
     }
 
     return (
         <div className="container mx-auto py-8 max-w-4xl">
             <div className="mb-6">
-                <h1 className="text-3xl font-bold">Notification Settings</h1>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                    Notification Settings
+                    <ProBadge />
+                </h1>
                 <p className="text-muted-foreground mt-2">
                     Configure how you want to receive notifications
                 </p>
