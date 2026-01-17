@@ -20,6 +20,7 @@ from app.core.models import (
 )
 from app.services.notification_service import get_notification_service
 from app.api.v1.deployments import get_current_user, User
+from app.core.decorators import require_pro_license
 
 router = APIRouter()
 
@@ -103,11 +104,12 @@ class TestNotificationResponse(BaseModel):
 # ============================================================================
 
 @router.get("/notifications/settings", response_model=NotificationSettingsResponse)
+@require_pro_license
 async def get_notification_settings(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Get user's notification settings"""
+    """Get user's notification settings (Pro Feature)"""
     
     # Save user_id to avoid accessing detached object after rollback
     user_id = current_user.clerk_id
@@ -179,12 +181,13 @@ async def get_notification_settings(
     )
 
 @router.put("/notifications/settings", response_model=NotificationSettingsResponse)
+@require_pro_license
 async def update_notification_settings(
     update: NotificationSettingsUpdate,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Update user's notification settings"""
+    """Update user's notification settings (Pro Feature)"""
     
     statement = select(NotificationSettings).where(
         NotificationSettings.user_id == current_user.clerk_id
@@ -243,11 +246,12 @@ async def update_notification_settings(
 bind_tokens = {}
 
 @router.post("/notifications/telegram/bind", response_model=TelegramBindResponse)
+@require_pro_license
 async def create_telegram_bind_token(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Generate Telegram binding token"""
+    """Generate Telegram binding token (Pro Feature)"""
     
     from app.services.telegram_service import get_telegram_service
     telegram = get_telegram_service(session)
@@ -433,12 +437,13 @@ class WebhookTestResponse(BaseModel):
     timestamp: str
 
 @router.post("/notifications/webhook/test", response_model=WebhookTestResponse)
+@require_pro_license
 async def test_webhook(
     request: WebhookTestRequest,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Test webhook endpoint"""
+    """Test webhook endpoint (Pro Feature)"""
     
     from app.services.webhook_service import get_webhook_service
     webhook_service = get_webhook_service(session)

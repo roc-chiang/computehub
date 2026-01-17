@@ -22,6 +22,7 @@ from app.core.automation_models import (
     RuleActionType, RuleExecutionStatus
 )
 from app.scheduler.rule_engine import RuleEngine
+from app.core.decorators import require_pro_license
 
 
 router = APIRouter()
@@ -91,11 +92,12 @@ async def get_current_user(
 # ============================================================================
 
 @router.get("/rules")
+@require_pro_license
 async def list_rules(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """List all automation rules for the current user."""
+    """List all automation rules for the current user. (Pro Feature)"""
     rules = session.exec(
         select(AutomationRuleV2).where(AutomationRuleV2.user_id == current_user.id)
     ).all()
@@ -122,12 +124,13 @@ async def list_rules(
 
 
 @router.post("/rules")
+@require_pro_license
 async def create_rule(
     rule_data: RuleCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new automation rule."""
+    """Create a new automation rule. (Pro Feature)"""
     # Validate trigger and action types
     try:
         RuleTriggerType(rule_data.trigger_type)
@@ -172,12 +175,13 @@ async def create_rule(
 
 
 @router.get("/rules/{rule_id}")
+@require_pro_license
 async def get_rule(
     rule_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Get a specific automation rule."""
+    """Get a specific automation rule. (Pro Feature)"""
     rule = session.get(AutomationRuleV2, rule_id)
     if not rule or rule.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -201,13 +205,14 @@ async def get_rule(
 
 
 @router.put("/rules/{rule_id}")
+@require_pro_license
 async def update_rule(
     rule_id: int,
     update_data: RuleUpdate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Update an automation rule."""
+    """Update an automation rule. (Pro Feature)"""
     rule = session.get(AutomationRuleV2, rule_id)
     if not rule or rule.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -242,12 +247,13 @@ async def update_rule(
 
 
 @router.delete("/rules/{rule_id}")
+@require_pro_license
 async def delete_rule(
     rule_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete an automation rule."""
+    """Delete an automation rule. (Pro Feature)"""
     rule = session.get(AutomationRuleV2, rule_id)
     if not rule or rule.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -259,12 +265,13 @@ async def delete_rule(
 
 
 @router.post("/rules/{rule_id}/toggle")
+@require_pro_license
 async def toggle_rule(
     rule_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Toggle a rule's enabled status."""
+    """Toggle a rule's enabled status. (Pro Feature)"""
     rule = session.get(AutomationRuleV2, rule_id)
     if not rule or rule.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Rule not found")
