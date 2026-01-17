@@ -56,7 +56,7 @@ services:
   worker:
     build: ../services/control-plane
     restart: always
-    command: ["python", "app/workers/worker.py"]
+    command: [ "python", "app/workers/worker.py" ]
     env_file: ../.env
     volumes:
       - ../services/control-plane:/app
@@ -64,6 +64,19 @@ services:
       - redis
       - postgres
       - minio
+    networks:
+      - computehub-net
+
+  license-server:
+    build: ../services/license-server
+    restart: always
+    environment:
+      - DATABASE_URL=sqlite:///./data/licenses.db
+      - API_SECRET_KEY=${LICENSE_API_SECRET:-change-me-in-production}
+    volumes:
+      - license_data:/app/data
+    ports:
+      - "8001:8000"
     networks:
       - computehub-net
 
@@ -85,6 +98,8 @@ volumes:
   minio_data:
   caddy_data:
   caddy_config:
+  license_data:
+
 
 networks:
   computehub-net:

@@ -49,83 +49,99 @@ class LicenseChecker:
         
         Steps:
         1. Validate format
-        2. (Future) Remote verification via API
-        3. Save to database
-        4. Return activation status
+        2. Verify with remote license server (if configured)
+        3. Save to local database
         
         Args:
-            license_key: The license key to activate
+            license_key: License key to activate
             
         Returns:
-            Dict with activation status and details
+            Dict with activation details
             
         Raises:
-            ValueError: If license key format is invalid
+            ValueError: If license key is invalid
         """
-        # Normalize license key
-        license_key = license_key.strip().upper()
-        
-        # Validate format
+        # Step 1: Validate format
         if not self.validate_format(license_key):
-            raise ValueError(
-                "Invalid license key format. "
-                "Expected format: COMPUTEHUB-XXXX-XXXX-XXXX-XXXX"
-            )
+            raise ValueError("Invalid license key format. Expected: COMPUTEHUB-XXXX-XXXX-XXXX-XXXX")
         
-        # TODO: Remote verification (Phase 2)
-        # For now, we accept any valid format
+        # Step 2: Remote verification (if configured)
+        import os
+        license_server_url = os.getenv("LICENSE_SERVER_URL")
         
-        # Check if already activated
-        existing = self.db.exec(
+        if license_server_url:
+            try:
+                import httpx
+                import asyncio
+                
+                async def verify_remote():
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        response = await client.post(
+                            f"{license_server_url}/api/verify",
+                            json={"license_key": license_key}
+                        )
+                        return response.json()
+                
+                # Run async verification
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(verify_remote())
+                loop.close()
+                
+                if not result.get("valid"):
+                    raise ValueError(result.get("message", "License verification failed"))
+                    
+            except Exception as e:
+                # Log warning but don't fail activation if server is unreachable
+                print(f"[WARNING] Remote license verification failed: {str(e)}")
+                print("[WARNING] Proceeding with local activation only")
+        
+        # Step 3: Save to local database
+        encrypted_key = self._encrypt_license_key(license_key)
+        masked_key = self._mask_license_key(license_key)
+        activated_at = datetime.utcnow().isoformat()
+        
+        # Store license key
+        key_setting = self.db.exec(
             select(SystemSetting).where(SystemSetting.key == self.LICENSE_KEY_SETTING)
         ).first()
         
-        if existing:
-            # Update existing
-            existing.value = license_key
-            existing.updated_at = datetime.utcnow()
-            self.db.add(existing)
+        if key_setting:
+            key_setting.value = encrypted_key
+            key_setting.updated_at = datetime.utcnow()
         else:
-            # Create new
-            setting = SystemSetting(
+            key_setting = SystemSetting(
                 key=self.LICENSE_KEY_SETTING,
-                value=license_key,
-                description="Pro License Key",
-                is_secret=True,
-                updated_at=datetime.utcnow()
+                value=encrypted_key,
+                description="Pro License Key (encrypted)",
+                is_secret=True
             )
-            self.db.add(setting)
         
-        # Save activation timestamp
-        activated_at_setting = self.db.exec(
-            select(SystemSetting).where(
-                SystemSetting.key == self.LICENSE_ACTIVATED_AT_SETTING
-            )
+        self.db.add(key_setting)
+        
+        # Store activation timestamp
+        time_setting = self.db.exec(
+            select(SystemSetting).where(SystemSetting.key == self.LICENSE_ACTIVATED_AT_SETTING)
         ).first()
         
-        activation_time = datetime.utcnow().isoformat()
-        
-        if activated_at_setting:
-            activated_at_setting.value = activation_time
-            activated_at_setting.updated_at = datetime.utcnow()
-            self.db.add(activated_at_setting)
+        if time_setting:
+            time_setting.value = activated_at
+            time_setting.updated_at = datetime.utcnow()
         else:
-            activated_at_setting = SystemSetting(
+            time_setting = SystemSetting(
                 key=self.LICENSE_ACTIVATED_AT_SETTING,
-                value=activation_time,
-                description="Pro License Activation Timestamp",
-                is_secret=False,
-                updated_at=datetime.utcnow()
+                value=activated_at,
+                description="Pro License Activation Time"
             )
-            self.db.add(activated_at_setting)
         
+        self.db.add(time_setting)
         self.db.commit()
         
         return {
             "success": True,
             "message": "Pro License activated successfully",
-            "license_key": self._mask_license_key(license_key),
-            "activated_at": activation_time,
+            "license_key": masked_key,
+            "activated_at": activated_at,
             "is_pro_enabled": True
         }
     
@@ -222,3 +238,60 @@ class LicenseChecker:
             return "****-****-****-****"
         
         return f"{parts[0]}-****-****-****-{parts[4]}"
+    
+    def _encrypt_license_key(self, license_key: str) -> str:
+        """
+        Encrypt license key for secure storage.
+        
+        Uses Fernet encryption (same as API keys).
+        
+        Args:
+            license_key: The license key to encrypt
+            
+        Returns:
+            Encrypted license key (base64 encoded)
+        """
+        from cryptography.fernet import Fernet
+        import os
+        
+        # Get encryption key from environment
+        encryption_key = os.getenv("ENCRYPTION_KEY")
+        if not encryption_key:
+            # Fallback: store unencrypted (not recommended for production)
+            print("[WARNING] ENCRYPTION_KEY not set, storing license key unencrypted")
+            return license_key
+        
+        try:
+            fernet = Fernet(encryption_key.encode())
+            encrypted = fernet.encrypt(license_key.encode())
+            return encrypted.decode()
+        except Exception as e:
+            print(f"[ERROR] Failed to encrypt license key: {str(e)}")
+            return license_key
+    
+    def _decrypt_license_key(self, encrypted_key: str) -> str:
+        """
+        Decrypt license key from storage.
+        
+        Args:
+            encrypted_key: The encrypted license key
+            
+        Returns:
+            Decrypted license key
+        """
+        from cryptography.fernet import Fernet
+        import os
+        
+        encryption_key = os.getenv("ENCRYPTION_KEY")
+        if not encryption_key:
+            # Assume it's unencrypted
+            return encrypted_key
+        
+        try:
+            fernet = Fernet(encryption_key.encode())
+            decrypted = fernet.decrypt(encrypted_key.encode())
+            return decrypted.decode()
+        except Exception as e:
+            # If decryption fails, assume it's already decrypted
+            print(f"[WARNING] Failed to decrypt license key, using as-is: {str(e)}")
+            return encrypted_key
