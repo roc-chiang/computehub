@@ -1,9 +1,12 @@
 # ComputeHub
 
-**Open-source GPU management platform for multi-cloud deployments**
+[![Demo](https://img.shields.io/badge/Demo-Live-success?style=for-the-badge&logo=vercel)](https://computehub.pardpro.ca)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![PRO](https://img.shields.io/badge/PRO-$49_Lifetime-gold?style=for-the-badge)](https://computehub.pardpro.ca/pricing)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub Stars](https://img.shields.io/github/stars/roc-chiang/computehub?style=social)](https://github.com/roc-chiang/computehub)
+> **GPU Cloud Management Platform** - Unified control for Vast.ai, RunPod, and more
+
+[🚀 Live Demo](https://computehub.pardpro.ca) | [📖 Documentation](./DOCS_INDEX.md) | [💎 Get Pro License](https://gumroad.com/l/computehub-pro)
 
 ---
 
