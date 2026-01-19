@@ -1,0 +1,380 @@
+{
+  "total": 48,
+  "passed": 16,
+  "failed": 32,
+  "skipped": 0,
+  "modules": {
+    "License System": {
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "Get License Status - No Auth",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 200"
+        },
+        {
+          "name": "Activate License - No Auth",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 400"
+        },
+        {
+          "name": "Deactivate License - No Auth",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 200"
+        }
+      ]
+    },
+    "Deployment Management": {
+      "passed": 0,
+      "failed": 7,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "List Deployments",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Create Deployment",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Get Deployment Details",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Start Deployment",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Stop Deployment",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Restart Deployment",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Delete Deployment",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        }
+      ]
+    },
+    "Batch Operations": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "Batch Start - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Batch Stop - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Batch Delete - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        }
+      ]
+    },
+    "Template System": {
+      "passed": 1,
+      "failed": 6,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "List All Templates",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "List Official Templates - Public",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 200"
+        },
+        {
+          "name": "List My Templates",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Get Template Details",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Create Template",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Deploy from Template",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Delete Template",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        }
+      ]
+    },
+    "Automation Rules": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "List Rules - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Create Rule - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Get Rule - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Update Rule - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Delete Rule - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Toggle Rule - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        }
+      ]
+    },
+    "Notification System": {
+      "passed": 4,
+      "failed": 1,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "Get Settings - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Update Settings - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Bind Telegram - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Test Webhook - Requires Pro",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 403"
+        },
+        {
+          "name": "Get Notification History",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        }
+      ]
+    },
+    "Monitoring System": {
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "Get Current Metrics",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Get Metrics History",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Get Alerts",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        }
+      ]
+    },
+    "Provider Management": {
+      "passed": 0,
+      "failed": 5,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "List Providers",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 422 (Auth required)"
+        },
+        {
+          "name": "Add Provider",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 422 (Auth required)"
+        },
+        {
+          "name": "Update Provider",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 422 (Auth required)"
+        },
+        {
+          "name": "Verify Provider",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 422 (Auth required)"
+        },
+        {
+          "name": "Delete Provider",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 422 (Auth required)"
+        }
+      ]
+    },
+    "Cost Management": {
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "Get Cost Summary",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Get Cost Breakdown",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        }
+      ]
+    },
+    "GPU Pricing": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "Get GPU Prices - Public",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 200"
+        },
+        {
+          "name": "Get Price History - Public",
+          "passed": true,
+          "skipped": false,
+          "message": "Status: 200"
+        }
+      ]
+    },
+    "Organization Management": {
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "List Organizations",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Create Organization",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        },
+        {
+          "name": "Get Organization",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 403 (Auth required)"
+        }
+      ]
+    },
+    "Project Management": {
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "tests": [
+        {
+          "name": "List Projects",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 404 (Auth required)"
+        },
+        {
+          "name": "Create Project",
+          "passed": false,
+          "skipped": false,
+          "message": "Status: 404 (Auth required)"
+        }
+      ]
+    }
+  }
+}

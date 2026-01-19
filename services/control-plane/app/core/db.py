@@ -21,6 +21,10 @@ else:
 def init_db():
     SQLModel.metadata.create_all(engine)
     
+    # Run migrations before seeding data
+    from app.core.migrations import run_migrations
+    run_migrations()
+    
     # Seed initial data
     from app.core.seed_data import seed_database
     with Session(engine) as session:
