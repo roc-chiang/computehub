@@ -101,8 +101,113 @@ def migrate_postgresql():
     
     print("[MIGRATION] ✅ Successfully added is_pro column")
 
+def migrate_add_organization_project_columns():
+    """Add organization_id and project_id columns to deployment table if they don't exist"""
+    
+    try:
+        db_url = str(engine.url)
+        
+        if "sqlite" in db_url:
+            migrate_deployment_sqlite()
+        elif "postgresql" in db_url:
+            migrate_deployment_postgresql()
+        else:
+            print(f"[MIGRATION] Unknown database type: {db_url}")
+            
+    except Exception as e:
+        print(f"[MIGRATION ERROR] Failed to migrate deployment table: {e}")
+
+def migrate_deployment_sqlite():
+    """Migrate deployment table for SQLite"""
+    print("[MIGRATION] Checking deployment table schema...")
+    
+    inspector = inspect(engine)
+    
+    if "deployment" not in inspector.get_table_names():
+        print("[MIGRATION] deployment table doesn't exist yet, skipping migration")
+        return
+    
+    columns = [col["name"] for col in inspector.get_columns("deployment")]
+    
+    # Check and add organization_id
+    if "organization_id" not in columns:
+        print("[MIGRATION] Adding organization_id column to deployment table...")
+        with engine.begin() as conn:
+            conn.execute(text("""
+                ALTER TABLE deployment 
+                ADD COLUMN organization_id INTEGER
+            """))
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_deployment_organization_id 
+                ON deployment(organization_id)
+            """))
+        print("[MIGRATION] ✅ Successfully added organization_id column")
+    else:
+        print("[MIGRATION] organization_id column already exists")
+    
+    # Check and add project_id
+    if "project_id" not in columns:
+        print("[MIGRATION] Adding project_id column to deployment table...")
+        with engine.begin() as conn:
+            conn.execute(text("""
+                ALTER TABLE deployment 
+                ADD COLUMN project_id INTEGER
+            """))
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_deployment_project_id 
+                ON deployment(project_id)
+            """))
+        print("[MIGRATION] ✅ Successfully added project_id column")
+    else:
+        print("[MIGRATION] project_id column already exists")
+
+def migrate_deployment_postgresql():
+    """Migrate deployment table for PostgreSQL"""
+    print("[MIGRATION] Checking deployment table schema...")
+    
+    inspector = inspect(engine)
+    
+    if "deployment" not in inspector.get_table_names():
+        print("[MIGRATION] deployment table doesn't exist yet, skipping migration")
+        return
+    
+    columns = [col["name"] for col in inspector.get_columns("deployment")]
+    
+    # Check and add organization_id
+    if "organization_id" not in columns:
+        print("[MIGRATION] Adding organization_id column to deployment table...")
+        with engine.begin() as conn:
+            conn.execute(text("""
+                ALTER TABLE deployment 
+                ADD COLUMN organization_id INTEGER
+            """))
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_deployment_organization_id 
+                ON deployment(organization_id)
+            """))
+        print("[MIGRATION] ✅ Successfully added organization_id column")
+    else:
+        print("[MIGRATION] organization_id column already exists")
+    
+    # Check and add project_id
+    if "project_id" not in columns:
+        print("[MIGRATION] Adding project_id column to deployment table...")
+        with engine.begin() as conn:
+            conn.execute(text("""
+                ALTER TABLE deployment 
+                ADD COLUMN project_id INTEGER
+            """))
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_deployment_project_id 
+                ON deployment(project_id)
+            """))
+        print("[MIGRATION] ✅ Successfully added project_id column")
+    else:
+        print("[MIGRATION] project_id column already exists")
+
 def run_migrations():
     """Run all pending migrations"""
     print("[MIGRATION] Running database migrations...")
     migrate_add_is_pro_column()
+    migrate_add_organization_project_columns()
     print("[MIGRATION] Migrations complete")
