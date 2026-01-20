@@ -6,7 +6,7 @@
 
 > **GPU Cloud Management Platform** - Unified control for Vast.ai, RunPod, and more
 
-[🚀 Live Demo](https://computehub.pardpro.ca) | [📖 Documentation](./DOCS_INDEX.md) | [💎 Get Pro License](https://gumroad.com/l/computehub-pro)
+[🚀 Live Demo](https://computehub.pardpro.ca) | [📖 Documentation](./DOCS_INDEX.md) | [💎 Get Pro License](https://gumroad.com/l/computehub-pro) （coming soon）
 
 ---
 

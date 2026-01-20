@@ -74,14 +74,14 @@ export default function ContactPage() {
                                         <Mail className="h-6 w-6 text-brand mt-1" />
                                         <div>
                                             <h3 className="homepage-h4 text-text-primary mb-1">Email</h3>
-                                            <p className="homepage-body text-text-secondary">support@computehub.com</p>
+                                            <p className="homepage-body text-text-secondary">info@pardpro.ca</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-4">
                                         <Phone className="h-6 w-6 text-brand mt-1" />
                                         <div>
                                             <h3 className="homepage-h4 text-text-primary mb-1">Phone</h3>
-                                            <p className="homepage-body text-text-secondary">+1 (555) 123-4567</p>
+                                            <p className="homepage-body text-text-secondary">+1 (778) 861-6918</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-4">
@@ -89,9 +89,9 @@ export default function ContactPage() {
                                         <div>
                                             <h3 className="homepage-h4 text-text-primary mb-1">Office</h3>
                                             <p className="homepage-body text-text-secondary">
-                                                123 Tech Street<br />
-                                                San Francisco, CA 94105<br />
-                                                United States
+                                                870 Riverside Dr<br />
+                                                Port Coquitlam, BC V3B 7T3<br />
+                                                Canada
                                             </p>
                                         </div>
                                     </div>
