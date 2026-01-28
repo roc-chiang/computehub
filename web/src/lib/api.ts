@@ -1,4 +1,4 @@
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`;
+export const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`;
 console.log('[API] API_BASE_URL:', API_BASE_URL, 'NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
 
 let authToken: string | null = null;

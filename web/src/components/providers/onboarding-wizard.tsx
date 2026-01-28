@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { API_BASE_URL } from "@/lib/api";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +54,7 @@ export function OnboardingWizard({ open, onOpenChange, providerName, onSuccess }
             }
 
             // Create provider binding
-            const response = await fetch("http://localhost:8000/api/v1/user-providers", {
+            const response = await fetch(`${API_BASE_URL}/user-providers`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -86,7 +87,7 @@ export function OnboardingWizard({ open, onOpenChange, providerName, onSuccess }
 
             // Verify the API key
             setStep("verify");
-            const verifyResponse = await fetch(`http://localhost:8000/api/v1/user-providers/${binding.id}/verify`, {
+            const verifyResponse = await fetch(`${API_BASE_URL}/user-providers/${binding.id}/verify`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,

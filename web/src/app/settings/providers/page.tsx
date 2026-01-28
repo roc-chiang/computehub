@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { API_BASE_URL } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle, Plus, Settings2, Trash2, RefreshCw } from "lucide-react";
 import { getSupportedProviders } from "@/lib/provider-instructions";
@@ -32,7 +33,7 @@ export default function ProvidersPage() {
 
     const fetchBindings = async () => {
         try {
-            const response = await fetch("http://localhost:8000/api/v1/user-providers");
+            const response = await fetch(`${API_BASE_URL}/user-providers`);
             if (response.ok) {
                 const data = await response.json();
                 setBindings(data);
@@ -67,7 +68,7 @@ export default function ProvidersPage() {
         }
 
         try {
-            const response = await fetch(`http://localhost:8000/api/v1/user-providers/${bindingId}`, {
+            const response = await fetch(`${API_BASE_URL}/user-providers/${bindingId}`, {
                 method: "DELETE",
             });
 

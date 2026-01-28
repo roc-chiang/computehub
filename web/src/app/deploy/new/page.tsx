@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, Rocket, AlertCircle, BookTemplate, Save } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useToast } from "@/hooks/use-toast";
-import { createDeployment } from "@/lib/api";
+import { createDeployment, API_BASE_URL } from "@/lib/api";
 import { getTemplates, createTemplate, type DeploymentTemplate } from "@/lib/templates-api";
 import { setAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -138,7 +138,7 @@ export default function NewDeployment() {
                 const token = await getToken();
                 if (!token) return;
 
-                const response = await fetch("http://localhost:8000/api/v1/user-providers", {
+                const response = await fetch(`${API_BASE_URL}/user-providers`, {
                     headers: { "Authorization": `Bearer ${token}` },
                 });
                 if (response.ok) {

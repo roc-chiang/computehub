@@ -1,9 +1,17 @@
 /**
  * Notification API Client
- * Handles notification settings, history, and Telegram binding
+ * Handles notification settings, history, and Telegram bindin
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { getHeaders, API_BASE_URL } from "./api"; // Import standardized URL
+
+// Removed local API_BASE definition
+
+// ... Types ...
+// (I will not replace types, just the usage. Wait, replace_file_content replaces specific chunks or can replace whole file. 
+// I should use multi_replace for efficiency and precision)
+// Let me switch to multi_replace for this file as it's large and I only need to change specific lines.
+
 
 // ============================================================================
 // Types
@@ -73,7 +81,7 @@ export interface NotificationHistoryResponse {
  * Get notification settings
  */
 export async function getNotificationSettings(token: string): Promise<NotificationSettings> {
-    const response = await fetch(`${API_BASE}/api/v1/notifications/settings`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/settings`, {
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -94,7 +102,7 @@ export async function updateNotificationSettings(
     token: string,
     update: NotificationSettingsUpdate
 ): Promise<NotificationSettings> {
-    const response = await fetch(`${API_BASE}/api/v1/notifications/settings`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/settings`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -114,7 +122,7 @@ export async function updateNotificationSettings(
  * Create Telegram bind token
  */
 export async function createTelegramBindToken(token: string): Promise<TelegramBindResponse> {
-    const response = await fetch(`${API_BASE}/api/v1/notifications/telegram/bind`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/telegram/bind`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -134,7 +142,7 @@ export async function createTelegramBindToken(token: string): Promise<TelegramBi
  * Get Telegram binding status
  */
 export async function getTelegramStatus(token: string): Promise<TelegramStatus> {
-    const response = await fetch(`${API_BASE}/api/v1/notifications/telegram/status`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/telegram/status`, {
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -152,7 +160,7 @@ export async function getTelegramStatus(token: string): Promise<TelegramStatus> 
  * Unbind Telegram
  */
 export async function unbindTelegram(token: string): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/v1/notifications/telegram/unbind`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/telegram/unbind`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -184,7 +192,7 @@ export async function getNotificationHistory(
     if (status) params.append('status', status);
 
     const response = await fetch(
-        `${API_BASE}/api/v1/notifications/history?${params}`,
+        `${API_BASE_URL}/notifications/history?${params}`,
         {
             headers: {
                 'Content-Type': 'application/json',
@@ -204,7 +212,7 @@ export async function getNotificationHistory(
  * Send test notification
  */
 export async function sendTestNotification(token: string, channel: string): Promise<any> {
-    const response = await fetch(`${API_BASE}/api/v1/notifications/test`, {
+    const response = await fetch(`${API_BASE_URL}/notifications/test`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

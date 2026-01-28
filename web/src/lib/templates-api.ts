@@ -2,9 +2,7 @@
  * Deployment Templates API Client
  */
 
-import { getHeaders } from "./api";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { getHeaders, API_BASE_URL } from "./api";
 
 export interface DeploymentTemplate {
     id: number;
@@ -37,7 +35,7 @@ export interface CreateTemplateRequest {
 }
 
 export async function getTemplates(): Promise<DeploymentTemplate[]> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/templates/my`, {
+    const res = await fetch(`${API_BASE_URL}/templates/my`, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch templates");
@@ -45,7 +43,7 @@ export async function getTemplates(): Promise<DeploymentTemplate[]> {
 }
 
 export async function createTemplate(data: CreateTemplateRequest): Promise<DeploymentTemplate> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/deployment-templates`, {
+    const res = await fetch(`${API_BASE_URL}/deployment-templates`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -58,7 +56,7 @@ export async function createTemplate(data: CreateTemplateRequest): Promise<Deplo
 }
 
 export async function updateTemplate(id: number, data: Partial<CreateTemplateRequest>): Promise<DeploymentTemplate> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/deployment-templates/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/deployment-templates/${id}`, {
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -68,7 +66,7 @@ export async function updateTemplate(id: number, data: Partial<CreateTemplateReq
 }
 
 export async function deleteTemplate(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/deployment-templates/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/deployment-templates/${id}`, {
         method: "DELETE",
         headers: getHeaders(),
     });

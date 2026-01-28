@@ -8,6 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, Cpu, HardDrive, Wifi, Zap, AlertTriangle, CheckCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { API_BASE_URL } from "@/lib/api";
+import { useAuth } from "@clerk/nextjs";
 
 interface Metrics {
     timestamp: string;
@@ -28,6 +30,7 @@ interface Metrics {
 export default function MonitoringPage() {
     const params = useParams();
     const deploymentId = params.id as string;
+    const { getToken } = useAuth();
 
     const [metrics, setMetrics] = useState<Metrics | null>(null);
     const [history, setHistory] = useState<Metrics[]>([]);
@@ -37,51 +40,55 @@ export default function MonitoringPage() {
     const wsRef = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        // 建立 WebSocket 连接
-        const token = localStorage.getItem("token");
-        const ws = new WebSocket(
-            `ws://localhost:8000/api/v1/deployments/${deploymentId}/metrics/stream`
-        );
+        const connectWs = async () => {
+            const token = await getToken();
+            const wsUrlBase = API_BASE_URL.replace(/^http/, 'ws');
+            const wsUrl = `${wsUrlBase}/deployments/${deploymentId}/metrics/stream`;
 
-        ws.onopen = () => {
-            console.log("✅ WebSocket connected");
-            setConnected(true);
-            setError(null);
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log("✅ WebSocket connected");
+                setConnected(true);
+                setError(null);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === "metrics") {
+                    setMetrics(data.data);
+                    setHistory(prev => {
+                        const newHistory = [...prev, data.data];
+                        return newHistory.slice(-30);
+                    });
+                } else if (data.type === "error") {
+                    setError(data.message);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error("❌ WebSocket error:", error);
+                setError("Connection error");
+                setConnected(false);
+            };
+
+            ws.onclose = () => {
+                console.log("🔌 WebSocket disconnected");
+                setConnected(false);
+            };
+
+            wsRef.current = ws;
         };
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === "metrics") {
-                setMetrics(data.data);
-
-                // 保留最近 30 个数据点用于图表
-                setHistory(prev => {
-                    const newHistory = [...prev, data.data];
-                    return newHistory.slice(-30);
-                });
-            } else if (data.type === "error") {
-                setError(data.message);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error("❌ WebSocket error:", error);
-            setError("Connection error");
-            setConnected(false);
-        };
-
-        ws.onclose = () => {
-            console.log("🔌 WebSocket disconnected");
-            setConnected(false);
-        };
-
-        wsRef.current = ws;
+        connectWs();
 
         return () => {
-            ws.close();
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
         };
-    }, [deploymentId]);
+    }, [deploymentId, getToken]);
 
     if (error) {
         return (

@@ -2,9 +2,7 @@
  * Batch Operations API Client
  */
 
-import { getHeaders } from "./api";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { getHeaders, API_BASE_URL } from "./api";
 
 export interface BatchOperationResult {
     success: number[];

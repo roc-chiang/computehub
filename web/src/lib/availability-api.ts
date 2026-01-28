@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { API_BASE_URL } from "./api";
 
 export interface ProviderAvailability {
     available: boolean;
@@ -33,7 +33,7 @@ export async function checkGPUAvailability(
     }
 
     const response = await fetch(
-        `${API_BASE}/api/v1/availability/check?${params}`,
+        `${API_BASE_URL}/availability/check?${params}`,
         {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -51,7 +51,7 @@ export async function checkGPUAvailability(
 
 export async function clearAvailabilityCache(token: string): Promise<{ message: string; cleared_count: number }> {
     const response = await fetch(
-        `${API_BASE}/api/v1/availability/clear-cache`,
+        `${API_BASE_URL}/availability/clear-cache`,
         {
             method: "POST",
             headers: {

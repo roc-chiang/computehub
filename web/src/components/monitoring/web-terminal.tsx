@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api";
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -122,9 +124,8 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
             setReconnectAttempt(attempt);
 
             // Get API URL from environment
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            const wsUrl = API_URL.replace('http', 'ws');
-            const url = `${wsUrl}/api/v1/deployments/${deploymentId}/terminal`;
+            const wsUrlBase = API_BASE_URL.replace(/^http/, 'ws');
+            const url = `${wsUrlBase}/deployments/${deploymentId}/terminal`;
 
             if (attempt === 0) {
                 terminal.writeln('Connecting to deployment...');

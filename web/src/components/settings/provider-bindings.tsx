@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { API_BASE_URL } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,7 @@ export function ProviderBindings() {
                 return;
             }
 
-            const response = await fetch("http://localhost:8000/api/v1/user-providers", {
+            const response = await fetch(`${API_BASE_URL}/user-providers`, {
                 headers: {
                     "Authorization": `Bearer ${token}`,
                 },
@@ -85,7 +86,7 @@ export function ProviderBindings() {
                 throw new Error("Authentication required");
             }
 
-            const response = await fetch(`http://localhost:8000/api/v1/user-providers/${bindingId}`, {
+            const response = await fetch(`${API_BASE_URL}/user-providers/${bindingId}`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${token}`,

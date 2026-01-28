@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL } from "@/lib/api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, Clock, TrendingUp, TrendingDown, Minus, Rocket, Filter, ArrowUpDown, Download } from "lucide-react";
@@ -40,7 +41,7 @@ export default function GPUPricesDashboard() {
 
     const fetchPrices = async () => {
         try {
-            const response = await fetch("http://localhost:8000/api/v1/public/gpu-prices");
+            const response = await fetch(`${API_BASE_URL}/public/gpu-prices`);
             if (response.ok) {
                 const data = await response.json();
                 setPrices(data);
