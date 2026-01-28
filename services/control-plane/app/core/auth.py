@@ -49,17 +49,28 @@ def verify_token(token: str, session: Session) -> dict:
         
         if not public_key:
             # Fetch JWKS
-            response = requests.get(jwks_url)
-            response.raise_for_status()
-            jwks = response.json()
-            
-            for key in jwks["keys"]:
-                _jwks_cache[key["kid"]] = RSAAlgorithm.from_jwk(key)
-            
-            public_key = _jwks_cache.get(kid)
-            
+            try:
+                response = requests.get(jwks_url, timeout=5) # Add timeout
+                response.raise_for_status()
+                jwks = response.json()
+                
+                for key in jwks["keys"]:
+                    _jwks_cache[key["kid"]] = RSAAlgorithm.from_jwk(key)
+                
+                public_key = _jwks_cache.get(kid)
+            except Exception as jwks_error:
+                print(f"[AUTH WARNING] Failed to fetch JWKS from {jwks_url}: {jwks_error}")
+                # Fallback: Check if we have a hardcoded public key in env (useful for air-gapped or DNS issues)
+                fallback_key = os.getenv("CLERK_PEM_PUBLIC_KEY")
+                if fallback_key:
+                    print("[AUTH] Using fallback CLERK_PEM_PUBLIC_KEY from environment")
+                    public_key = fallback_key
+                    # Construct a dummy public key object if needed or just pass string if jwt supports it (it does for PEM)
+                else:
+                    raise jwks_error
+
             if not public_key:
-                 raise Exception("Public key not found in JWKS")
+                 raise Exception("Public key not found in JWKS and no fallback key provided")
 
         # Decode and verify
         payload = jwt.decode(
