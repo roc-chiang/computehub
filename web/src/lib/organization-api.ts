@@ -6,9 +6,7 @@
  * POS: API client for team collaboration - organization operations
  */
 
-import { getHeaders } from './api';
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`;
+import { getHeaders, API_BASE_URL } from './api';
 
 export interface Organization {
     id: number;
@@ -86,7 +84,7 @@ export async function createOrganization(data: {
     name: string;
     slug?: string;
 }): Promise<Organization> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/organizations`, {
+    const res = await fetch(`${API_BASE_URL}/organizations`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -99,7 +97,7 @@ export async function updateOrganization(
     id: number,
     data: { name?: string }
 ): Promise<Organization> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/organizations/${id}`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -109,7 +107,7 @@ export async function updateOrganization(
 }
 
 export async function deleteOrganization(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/organizations/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/organizations/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
     });
@@ -134,7 +132,7 @@ export async function inviteMember(
     data: { email: string; role: string }
 ): Promise<OrganizationInvitation> {
     const res = await fetch(
-        `${API_BASE_URL}/api/v1/organizations/${organizationId}/invitations`,
+        `${API_BASE_URL}/organizations/${organizationId}/invitations`,
         {
             method: 'POST',
             headers: getHeaders(),
@@ -165,7 +163,7 @@ export async function cancelInvitation(
     invitationId: number
 ): Promise<void> {
     const res = await fetch(
-        `${API_BASE_URL}/api/v1/organizations/${organizationId}/invitations/${invitationId}`,
+        `${API_BASE_URL}/organizations/${organizationId}/invitations/${invitationId}`,
         {
             method: 'DELETE',
             headers: getHeaders(),
@@ -175,7 +173,7 @@ export async function cancelInvitation(
 }
 
 export async function acceptInvitation(token: string): Promise<OrganizationMember> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/invitations/${token}/accept`, {
+    const res = await fetch(`${API_BASE_URL}/invitations/${token}/accept`, {
         method: 'POST',
         headers: getHeaders(),
     });
@@ -189,7 +187,7 @@ export async function updateMemberRole(
     role: string
 ): Promise<OrganizationMember> {
     const res = await fetch(
-        `${API_BASE_URL}/api/v1/organizations/${organizationId}/members/${userId}`,
+        `${API_BASE_URL}/organizations/${organizationId}/members/${userId}`,
         {
             method: 'PATCH',
             headers: getHeaders(),
@@ -205,7 +203,7 @@ export async function removeMember(
     userId: number
 ): Promise<void> {
     const res = await fetch(
-        `${API_BASE_URL}/api/v1/organizations/${organizationId}/members/${userId}`,
+        `${API_BASE_URL}/organizations/${organizationId}/members/${userId}`,
         {
             method: 'DELETE',
             headers: getHeaders(),
@@ -263,7 +261,7 @@ export async function updateProject(
     id: number,
     data: { name?: string; description?: string }
 ): Promise<Project> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/projects/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify(data),

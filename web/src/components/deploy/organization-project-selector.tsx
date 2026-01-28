@@ -1,5 +1,8 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
+import { setAuthToken } from "@/lib/api";
+
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,11 +31,16 @@ export function OrganizationProjectSelector({
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [projectsLoading, setProjectsLoading] = useState(false);
+    const { getToken } = useAuth();
 
     // Load organizations on mount
     useEffect(() => {
         const loadOrganizations = async () => {
             try {
+                const token = await getToken();
+                if (token) {
+                    setAuthToken(token);
+                }
                 const orgs = await getOrganizations();
                 setOrganizations(orgs);
 
@@ -48,7 +56,7 @@ export function OrganizationProjectSelector({
             }
         };
         loadOrganizations();
-    }, []);
+    }, [getToken]);
 
     // Load projects when organization changes
     useEffect(() => {
@@ -61,6 +69,10 @@ export function OrganizationProjectSelector({
 
             setProjectsLoading(true);
             try {
+                const token = await getToken();
+                if (token) {
+                    setAuthToken(token);
+                }
                 const projs = await getProjects(organizationId);
                 setProjects(projs);
 
@@ -82,7 +94,7 @@ export function OrganizationProjectSelector({
             }
         };
         loadProjects();
-    }, [organizationId]);
+    }, [organizationId, getToken]);
 
     if (loading) {
         return <div className="text-sm text-text-secondary">Loading organizations...</div>;
