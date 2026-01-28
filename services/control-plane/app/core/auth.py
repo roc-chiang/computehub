@@ -64,8 +64,24 @@ def verify_token(token: str, session: Session) -> dict:
                 fallback_key = os.getenv("CLERK_PEM_PUBLIC_KEY")
                 if fallback_key:
                     print("[AUTH] Using fallback CLERK_PEM_PUBLIC_KEY from environment")
-                    public_key = fallback_key
-                    # Construct a dummy public key object if needed or just pass string if jwt supports it (it does for PEM)
+                    
+                    # Ensure PEM format is correct (fix newlines if they are spaces)
+                    if "-----BEGIN PUBLIC KEY-----" in fallback_key:
+                        # Normalize: Try to fix if it was pasted as one line
+                        # 1. Ensure header/footer have newlines
+                        fallback_key = fallback_key.replace("-----BEGIN PUBLIC KEY-----", "-----BEGIN PUBLIC KEY-----\n")
+                        fallback_key = fallback_key.replace("-----END PUBLIC KEY-----", "\n-----END PUBLIC KEY-----")
+                        # 2. If the body still has spaces instead of newlines, fix it
+                        body_start = fallback_key.find("-----BEGIN PUBLIC KEY-----\n") + 27
+                        body_end = fallback_key.find("\n-----END PUBLIC KEY-----")
+                        if body_start != -1 and body_end != -1:
+                            body = fallback_key[body_start:body_end].strip()
+                            if " " in body:
+                                body = body.replace(" ", "\n")
+                                fallback_key = f"-----BEGIN PUBLIC KEY-----\n{body}\n-----END PUBLIC KEY-----"
+                    
+                    public_key = fallback_key.replace("\\n", "\n") # Handle literal \n chars too
+                    
                 else:
                     raise jwks_error
 
