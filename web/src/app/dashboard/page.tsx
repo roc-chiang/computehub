@@ -18,12 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDeployments, type Deployment } from "@/lib/api";
 import { getUserProfile, type UserProfile } from "@/lib/user-profile-api";
-// Subscription removed - migrating to License system
 import { getCostSummary, getCostTimeline } from "@/lib/costs-api";
 import { setAuthToken } from "@/lib/api";
 import { StatusBadge } from "@/components/deploy/deployment-status";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useLicense } from "@/contexts/license-context";
 
 export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
@@ -31,9 +31,9 @@ export default function DashboardPage() {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [costSummary, setCostSummary] = useState<any>(null);
     const [costTimeline, setCostTimeline] = useState<any[]>([]);
-    // const [subscription, setSubscription] = useState<Subscription | null>(null); // Removed
     const { getToken, isLoaded, isSignedIn } = useAuth();
     const { user } = useUser();
+    const { license } = useLicense();
 
     useEffect(() => {
         console.log('[Dashboard] Auth State: Loaded=' + isLoaded + ', SignedIn=' + isSignedIn + ', User=' + user?.id);
@@ -67,15 +67,14 @@ export default function DashboardPage() {
                     getDeployments(),
                     getCostSummary(),
                     getCostTimeline(7), // Last 7 days
-                    // Subscription fetch removed
                 ]);
+
 
                 setDeployments(deploymentsData.sort((a, b) =>
                     new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
                 ));
                 setCostSummary(summaryData);
                 setCostTimeline(timelineData);
-                // setSubscription(subscriptionData); // Removed
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error);
             } finally {
@@ -149,21 +148,21 @@ export default function DashboardPage() {
                         </Link>
                     </Card>
 
-                    {/* Subscription Status */}
+                    {/* License Status */}
                     <Card className="hover:border-primary transition-colors cursor-pointer">
-                        <Link href="/settings/subscription">
+                        <Link href="/settings/license">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">
-                                    Subscription
+                                    License
                                 </CardTitle>
                                 <CreditCard className="h-4 w-4 text-purple-500" />
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold capitalize">
-                                    {subscription?.tier || 'Basic'}
+                                    {license.isProEnabled ? 'Pro' : 'Community'}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
-                                    {subscription?.tier === 'basic' ? (
+                                    {!license.isProEnabled ? (
                                         <>
                                             <Badge variant="secondary" className="text-xs">Free</Badge>
                                             <Button variant="link" className="h-auto p-0 text-xs">
@@ -172,7 +171,7 @@ export default function DashboardPage() {
                                         </>
                                     ) : (
                                         <Badge variant="default" className="text-xs">
-                                            {subscription?.tier === 'pro' ? '$49/mo' : '$299/mo'}
+                                            Active
                                         </Badge>
                                     )}
                                 </div>
