@@ -50,6 +50,9 @@ services:
       - minio
     ports:
       - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     networks:
       - computehub-net
 
@@ -64,6 +67,9 @@ services:
       - redis
       - postgres
       - minio
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     networks:
       - computehub-net
 
