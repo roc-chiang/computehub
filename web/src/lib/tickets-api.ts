@@ -1,8 +1,8 @@
 // Re-export enums and types from admin-tickets-api
-export { TicketStatus, TicketPriority, TicketCategory } from "./admin-tickets-api";
-export type { TicketReply } from "./admin-tickets-api";
+import { TicketStatus, TicketPriority, TicketCategory, type TicketReply } from "./admin-tickets-api";
+export { TicketStatus, TicketPriority, TicketCategory, type TicketReply };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { API_BASE_URL } from "./api";
 
 // User-facing tickets API
 export interface CreateTicketRequest {
@@ -37,7 +37,7 @@ export interface UserTicketDetail {
 
 // User API Functions
 export async function createTicket(data: CreateTicketRequest): Promise<UserTicketDetail> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/tickets`, {
+    const response = await fetch(`${API_BASE_URL}/tickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -48,21 +48,21 @@ export async function createTicket(data: CreateTicketRequest): Promise<UserTicke
 
 export async function getMyTickets(status?: TicketStatus): Promise<UserTicketListItem[]> {
     const url = status
-        ? `${API_BASE_URL}/api/v1/tickets?status=${status}`
-        : `${API_BASE_URL}/api/v1/tickets`;
+        ? `${API_BASE_URL}/tickets?status=${status}`
+        : `${API_BASE_URL}/tickets`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch tickets');
     return response.json();
 }
 
 export async function getMyTicketDetail(ticketId: number): Promise<UserTicketDetail> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/tickets/${ticketId}`);
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`);
     if (!response.ok) throw new Error('Failed to fetch ticket detail');
     return response.json();
 }
 
 export async function replyToMyTicket(ticketId: number, message: string): Promise<TicketReply> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/tickets/${ticketId}/reply`, {
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),

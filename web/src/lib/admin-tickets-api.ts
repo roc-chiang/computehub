@@ -81,9 +81,11 @@ export interface ReplyRequest {
     message: string;
 }
 
+import { API_BASE_URL } from "./api";
+
 // Admin API Functions
 export async function getTicketStats(): Promise<TicketStats> {
-    const response = await fetch('/api/v1/admin/tickets/stats');
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/stats`);
     if (!response.ok) throw new Error('Failed to fetch ticket stats');
     return response.json();
 }
@@ -106,20 +108,22 @@ export async function getTickets(params?: {
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
 
-    const url = `/api/v1/admin/tickets${queryParams.toString() ? `?${queryParams}` : ''}`;
+    if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+
+    const url = `${API_BASE_URL}/admin/tickets${queryParams.toString() ? `?${queryParams}` : ''}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch tickets');
     return response.json();
 }
 
 export async function getTicketDetail(ticketId: number): Promise<TicketDetail> {
-    const response = await fetch(`/api/v1/admin/tickets/${ticketId}`);
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`);
     if (!response.ok) throw new Error('Failed to fetch ticket detail');
     return response.json();
 }
 
 export async function updateTicket(ticketId: number, update: TicketUpdateRequest): Promise<TicketDetail> {
-    const response = await fetch(`/api/v1/admin/tickets/${ticketId}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(update),
@@ -129,7 +133,7 @@ export async function updateTicket(ticketId: number, update: TicketUpdateRequest
 }
 
 export async function replyToTicket(ticketId: number, message: string): Promise<TicketReply> {
-    const response = await fetch(`/api/v1/admin/tickets/${ticketId}/reply`, {
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),
