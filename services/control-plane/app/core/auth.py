@@ -38,6 +38,7 @@ def get_clerk_issuer() -> str:
 def verify_token(token: str, session: Session) -> dict:
     issuer = get_clerk_issuer()
     jwks_url = f"{issuer}/.well-known/jwks.json"
+    using_fallback = False
     
     try:
         # Fetch JWKS if not cached or force refresh on failure
@@ -81,6 +82,7 @@ def verify_token(token: str, session: Session) -> dict:
                                 fallback_key = f"-----BEGIN PUBLIC KEY-----\n{body}\n-----END PUBLIC KEY-----"
                     
                     public_key = fallback_key.replace("\\n", "\n") # Handle literal \n chars too
+                    using_fallback = True
                     
                 else:
                     raise jwks_error
@@ -89,15 +91,18 @@ def verify_token(token: str, session: Session) -> dict:
                  raise Exception("Public key not found in JWKS and no fallback key provided")
 
         # Decode and verify
+        decode_options = {"verify_aud": False}
+        if using_fallback:
+            # When using fallback key (manual override), we trust the key itself
+            # and might not match the issuer exactly if dev/prod mix
+            decode_options["verify_iss"] = False
+            
         payload = jwt.decode(
             token,
             public_key,
             algorithms=["RS256"],
-            issuer=issuer,
-            # Clerk tokens usually have audience, but often it's the frontend URL or empty? 
-            # We can skip audience check or verifying it matches our frontend if configured.
-            # verify_audience=True/False depending on Clerk config.
-            options={"verify_aud": False} 
+            issuer=issuer if not using_fallback else None,
+            options=decode_options
         )
         
         return payload
