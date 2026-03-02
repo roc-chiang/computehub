@@ -20,19 +20,16 @@ import { DevQuickLogin } from "@/components/dev-quick-login";
 
 async function getClerkKey() {
   try {
-    console.log("Fetching Clerk Key from backend...");
-    // Use backend service name in Docker, fallback to localhost for local dev
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
-    const res = await fetch(`${backendUrl}/api/v1/admin/config/public`, { cache: "no-store" });
+    // Attempt to fetch from backend configuration, useful for self-hosted instances
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://127.0.0.1:8000";
+    const res = await fetch(`${backendUrl}/api/v1/admin/config/public`, { cache: "no-store", next: { revalidate: 0 } });
     if (!res.ok) {
-      console.error("Failed to fetch Clerk key: Status", res.status);
       return null;
     }
     const data = await res.json();
-    console.log("Fetched Clerk Key:", data.clerkPublishableKey ? "FOUND" : "MISSING");
     return data.clerkPublishableKey;
   } catch (e) {
-    console.error("Failed to fetch Clerk key (Network Error)", e);
+    // This is expected if backend is offline or unreachable during SSR
     return null;
   }
 }
@@ -42,10 +39,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const clerkKey = await getClerkKey();
+  // Use backend configuration first, fallback to the environment variable
+  const clerkKey = (await getClerkKey()) || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
   return (
-    <ClerkProvider publishableKey={clerkKey} signInUrl="/login">
+    <ClerkProvider publishableKey={clerkKey || ""} signInUrl="/login">
       <html lang="en" suppressHydrationWarning>
         <body className={cn(inter.className, "min-h-screen bg-background font-sans antialiased")}>
           <ErrorBoundary>

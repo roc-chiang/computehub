@@ -1,5 +1,4 @@
-// Use absolute URL for API calls in production
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { API_BASE_URL, getHeaders } from "./api";
 
 export interface SettingItem {
     key: string;
@@ -10,21 +9,25 @@ export interface SettingItem {
 
 // API Functions
 export async function getAllSettings(includeSecrets = false): Promise<SettingItem[]> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/settings?include_secrets=${includeSecrets}`);
+    const response = await fetch(`${API_BASE_URL}/admin/settings?include_secrets=${includeSecrets}`, {
+        headers: getHeaders()
+    });
     if (!response.ok) throw new Error('Failed to fetch settings');
     return response.json();
 }
 
 export async function getSetting(key: string, includeSecret = false): Promise<SettingItem> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/settings/${key}?include_secret=${includeSecret}`);
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${key}?include_secret=${includeSecret}`, {
+        headers: getHeaders()
+    });
     if (!response.ok) throw new Error('Failed to fetch setting');
     return response.json();
 }
 
 export async function updateSetting(key: string, value: string) {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/settings/${key}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/${key}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ value }),
     });
     if (!response.ok) throw new Error('Failed to update setting');
@@ -32,9 +35,9 @@ export async function updateSetting(key: string, value: string) {
 }
 
 export async function bulkUpdateSettings(settings: Record<string, string>) {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/settings/bulk`, {
+    const response = await fetch(`${API_BASE_URL}/admin/settings/bulk`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ settings }),
     });
     if (!response.ok) throw new Error('Failed to bulk update settings');
@@ -42,7 +45,9 @@ export async function bulkUpdateSettings(settings: Record<string, string>) {
 }
 
 export async function getSettingsByCategory(category: 'platform' | 'pricing' | 'features' | 'limits'): Promise<SettingItem[]> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/settings/category/${category}`);
+    const response = await fetch(`${API_BASE_URL}/admin/settings/category/${category}`, {
+        headers: getHeaders()
+    });
     if (!response.ok) throw new Error('Failed to fetch settings by category');
     return response.json();
 }
