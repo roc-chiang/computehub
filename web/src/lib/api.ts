@@ -1,4 +1,13 @@
-export const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`;
+// Ensure API base URL uses https if the current page is loaded over https
+let rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+
+if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (rawBaseUrl.startsWith('http://') && !rawBaseUrl.includes('localhost') && !rawBaseUrl.includes('127.0.0.1')) {
+        rawBaseUrl = rawBaseUrl.replace(/^http:\/\//i, 'https://');
+    }
+}
+
+export const API_BASE_URL = `${rawBaseUrl}/api/v1`;
 console.log('[API] API_BASE_URL:', API_BASE_URL, 'NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
 
 let authToken: string | null = null;
