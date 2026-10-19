@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getAllSettings, SettingItem } from "@/lib/admin-settings-api";
+import { useRole } from "@/hooks/useRole";
 
 interface SettingsContextType {
     settings: Record<string, string>;
@@ -15,34 +16,46 @@ const SettingsContext = createContext<SettingsContextType>({
     getSetting: () => "",
 });
 
+const defaultSettings = {
+    platform_name: "ComputeHub",
+    support_email: "support@computehub.com",
+    platform_url: "https://computehub.pardpro.ca",
+};
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-    const [settings, setSettings] = useState<Record<string, string>>({});
+    const { isAdmin, isLoaded } = useRole();
+    const [settings, setSettings] = useState<Record<string, string>>(defaultSettings);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchSettings();
-    }, []);
-
-    const fetchSettings = async () => {
-        try {
-            const data = await getAllSettings(false);
-            const settingsMap: Record<string, string> = {};
-            data.forEach((setting) => {
-                settingsMap[setting.key] = setting.value;
-            });
-            setSettings(settingsMap);
-        } catch (error) {
-            console.error("Failed to fetch settings:", error);
-            // Use default values if fetch fails
-            setSettings({
-                platform_name: "ComputeHub",
-                support_email: "support@computehub.com",
-                platform_url: "https://computehub.com",
-            });
-        } finally {
+        if (!isLoaded) return;
+        if (!isAdmin) {
             setLoading(false);
+            return;
         }
-    };
+
+        let active = true;
+        const fetchSettings = async () => {
+            try {
+                const data = await getAllSettings(false);
+                if (!active) return;
+                const settingsMap: Record<string, string> = { ...defaultSettings };
+                data.forEach((setting) => {
+                    settingsMap[setting.key] = setting.value;
+                });
+                setSettings(settingsMap);
+            } catch (error) {
+                console.warn("Unable to load administrator settings; using defaults.", error);
+            } finally {
+                if (active) setLoading(false);
+            }
+        };
+
+        fetchSettings();
+        return () => {
+            active = false;
+        };
+    }, [isAdmin, isLoaded]);
 
     const getSetting = (key: string, defaultValue: string = "") => {
         return settings[key] || defaultValue;

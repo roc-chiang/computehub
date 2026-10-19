@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://computehub.pardpro.ca"),
   title: "ComputeHub",
   description: "GPU Aggregation Platform",
 };

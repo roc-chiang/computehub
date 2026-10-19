@@ -14,8 +14,11 @@ export function DevQuickLogin() {
     const { user } = useUser();
     const { role, isAdmin } = useRole();
 
-    // Only show in development
-    if (process.env.NODE_ENV !== "development") {
+    // Development-only and explicitly opt-in so a misconfigured server cannot expose it.
+    if (
+        process.env.NODE_ENV !== "development" ||
+        process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN !== "true"
+    ) {
         return null;
     }
 
