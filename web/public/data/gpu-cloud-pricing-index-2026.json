@@ -1,0 +1,19 @@
+{
+  "title": "2026 GPU Cloud Pricing Index",
+  "publisher": "ComputeHub",
+  "as_of": "2026-10-19",
+  "currency": "USD",
+  "unit": "per GPU-hour",
+  "methodology": "Public on-demand prices from official provider pricing pages. Taxes, storage, network, reserved contracts, spot interruptions, and availability are excluded.",
+  "entries": [
+    {"provider":"RunPod","product":"Pod · Community Cloud","gpu":"H100 PCIe","vram_gb":80,"price_usd_per_gpu_hour":2.89,"billing":"On demand","source_url":"https://www.runpod.io/pricing","source_updated":"2026-10-08"},
+    {"provider":"RunPod","product":"Pod · Community Cloud","gpu":"A100 PCIe","vram_gb":80,"price_usd_per_gpu_hour":1.79,"billing":"On demand","source_url":"https://www.runpod.io/pricing","source_updated":"2026-10-08"},
+    {"provider":"RunPod","product":"Pod · Community Cloud","gpu":"L40S","vram_gb":48,"price_usd_per_gpu_hour":1.09,"billing":"On demand","source_url":"https://www.runpod.io/pricing","source_updated":"2026-10-08"},
+    {"provider":"RunPod","product":"Pod · Community Cloud","gpu":"RTX A6000","vram_gb":48,"price_usd_per_gpu_hour":0.59,"billing":"On demand","source_url":"https://www.runpod.io/pricing","source_updated":"2026-10-08"},
+    {"provider":"RunPod","product":"Pod · Community Cloud","gpu":"RTX 4090","vram_gb":24,"price_usd_per_gpu_hour":0.89,"billing":"On demand","source_url":"https://www.runpod.io/pricing","source_updated":"2026-10-08"},
+    {"provider":"RunPod","product":"Pod · Community Cloud","gpu":"RTX 3090","vram_gb":24,"price_usd_per_gpu_hour":0.50,"billing":"On demand","source_url":"https://www.runpod.io/pricing","source_updated":"2026-10-08"},
+    {"provider":"Lambda","product":"1× GPU instance","gpu":"H100 PCIe","vram_gb":80,"price_usd_per_gpu_hour":3.29,"billing":"Pay by the minute","source_url":"https://lambda.ai/instances","source_updated":"2026-10-19"},
+    {"provider":"Lambda","product":"1× GPU instance","gpu":"A100 PCIe","vram_gb":40,"price_usd_per_gpu_hour":1.99,"billing":"Pay by the minute","source_url":"https://lambda.ai/instances","source_updated":"2026-10-19"},
+    {"provider":"Lambda","product":"1× GPU instance","gpu":"RTX A6000","vram_gb":48,"price_usd_per_gpu_hour":1.09,"billing":"Pay by the minute","source_url":"https://lambda.ai/instances","source_updated":"2026-10-19"}
+  ]
+}

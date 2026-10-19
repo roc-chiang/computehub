@@ -1,0 +1,10 @@
+provider,product,gpu,vram_gb,price_usd_per_gpu_hour,billing,source_url,source_updated,as_of
+RunPod,Pod - Community Cloud,H100 PCIe,80,2.89,On demand,https://www.runpod.io/pricing,2026-10-08,2026-10-19
+RunPod,Pod - Community Cloud,A100 PCIe,80,1.79,On demand,https://www.runpod.io/pricing,2026-10-08,2026-10-19
+RunPod,Pod - Community Cloud,L40S,48,1.09,On demand,https://www.runpod.io/pricing,2026-10-08,2026-10-19
+RunPod,Pod - Community Cloud,RTX A6000,48,0.59,On demand,https://www.runpod.io/pricing,2026-10-08,2026-10-19
+RunPod,Pod - Community Cloud,RTX 4090,24,0.89,On demand,https://www.runpod.io/pricing,2026-10-08,2026-10-19
+RunPod,Pod - Community Cloud,RTX 3090,24,0.50,On demand,https://www.runpod.io/pricing,2026-10-08,2026-10-19
+Lambda,1x GPU instance,H100 PCIe,80,3.29,Pay by the minute,https://lambda.ai/instances,2026-10-19,2026-10-19
+Lambda,1x GPU instance,A100 PCIe,40,1.99,Pay by the minute,https://lambda.ai/instances,2026-10-19,2026-10-19
+Lambda,1x GPU instance,RTX A6000,48,1.09,Pay by the minute,https://lambda.ai/instances,2026-10-19,2026-10-19

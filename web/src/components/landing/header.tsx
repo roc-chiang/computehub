@@ -14,7 +14,7 @@ import { useAuth } from "@clerk/nextjs";
 const navigation = [
     { name: "Features", href: "/#features" },
     { name: "Pricing", href: "/#pricing" },
-    { name: "GPU Prices", href: "/gpu-prices" },
+    { name: "GPU Pricing", href: "/gpu-pricing" },
     { name: "Docs", href: "/docs" },
     { name: "About", href: "/about" },
 ];
