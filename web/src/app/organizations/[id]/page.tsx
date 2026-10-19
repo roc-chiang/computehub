@@ -7,7 +7,7 @@ import { ArrowLeft, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getOrganization, Organization } from "@/lib/organization-api";
+import { getOrganization, getOrganizations, Organization } from "@/lib/organization-api";
 import { setAuthToken } from "@/lib/api";
 import { MembersList } from "@/components/organizations/members-list";
 import { ProjectsList } from "@/components/organizations/projects-list";
@@ -23,30 +23,29 @@ export default function OrganizationPage() {
     const [currentUserRole, setCurrentUserRole] = useState("viewer");
 
     useEffect(() => {
-        const initAuth = async () => {
+        const loadOrganization = async () => {
             const token = await getToken();
-            if (token) {
-                setAuthToken(token);
-                loadOrganization();
-            } else {
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+            setAuthToken(token);
+            try {
+                const [org, organizations] = await Promise.all([
+                    getOrganization(organizationId),
+                    getOrganizations(),
+                ]);
+                setOrganization(org);
+                const membership = organizations.find((item) => item.id === organizationId);
+                setCurrentUserRole(membership?.role ?? "viewer");
+            } catch (error) {
+                console.error("Failed to load organization:", error);
+            } finally {
                 setLoading(false);
             }
         };
-        initAuth();
-    }, [organizationId]);
-
-    const loadOrganization = async () => {
-        try {
-            const org = await getOrganization(organizationId);
-            setOrganization(org);
-            // TODO: Get current user's role from organizations list
-            setCurrentUserRole("admin"); // Placeholder
-        } catch (error) {
-            console.error("Failed to load organization:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        loadOrganization();
+    }, [getToken, organizationId]);
 
     if (loading) {
         return (

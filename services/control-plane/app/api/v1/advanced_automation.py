@@ -13,64 +13,18 @@ from sqlmodel import Session, select
 from pydantic import BaseModel
 
 from app.core.db import get_session
-from app.core.auth import verify_token
+from app.core.auth import get_current_user
 from app.core.models import User, Deployment
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-security = HTTPBearer()
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
-) -> User:
-    token = credentials.credentials
-    payload = verify_token(token, session)
-    
-    clerk_id = payload.get("sub")
-    if not clerk_id:
-        raise HTTPException(status_code=401, detail="Invalid token: missing sub")
-        
-    # Lazy User Creation / Sync
-    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
-    
-    if not user:
-        email = payload.get("email")
-        if not email:
-            email = f"{clerk_id}@clerk.user" 
-            
-        existing_email_user = session.exec(select(User).where(User.email == email)).first()
-        if existing_email_user:
-            existing_email_user.clerk_id = clerk_id
-            existing_email_user.auth_provider = "clerk"
-            session.add(existing_email_user)
-            session.commit()
-            session.refresh(existing_email_user)
-            return existing_email_user
-        
-        user = User(
-            email=email,
-            clerk_id=clerk_id,
-            auth_provider="clerk",
-            plan="free"
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-        
-    return user
 
 from app.core.automation_models import (
     PriceHistory,
     MigrationTask,
     FailoverConfig,
     BatchTask,
-    MigrationStatus,
     TaskStatus,
     TaskType
 )
 from app.scheduler.price_monitor import PriceMonitor
-from app.scheduler.auto_migration import MigrationManager
-from app.scheduler.failover_manager import FailoverManager
 from app.scheduler.task_queue import TaskQueueManager
 
 router = APIRouter(prefix="/advanced-automation", tags=["advanced-automation"])
@@ -209,34 +163,10 @@ async def create_migration(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new migration task."""
-    # Verify ownership
-    deployment = session.get(Deployment, migration_data.source_deployment_id)
-    if not deployment or deployment.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Deployment not found")
-    
-    # Get provider adapters
-    from app.main import get_provider_adapters
-    provider_adapters = get_provider_adapters()
-    
-    # Create migration
-    migration_manager = MigrationManager()
-    migration_task = await migration_manager.migrate_deployment(
-        source_deployment=deployment,
-        target_provider=migration_data.target_provider,
-        target_config=migration_data.target_config,
-        user_id=current_user.id,
-        session=session,
-        provider_adapters=provider_adapters
+    raise HTTPException(
+        status_code=501,
+        detail="Migration is unavailable until data transfer and verification are implemented",
     )
-    
-    return {
-        "id": migration_task.id,
-        "source_deployment_id": migration_task.source_deployment_id,
-        "target_provider": migration_task.target_provider,
-        "status": migration_task.status,
-        "created_at": migration_task.created_at.isoformat()
-    }
-
 
 @router.get("/migrations")
 async def list_migrations(
@@ -289,8 +219,8 @@ async def get_migration(
     if migration.migration_steps_json:
         try:
             steps = json.loads(migration.migration_steps_json)
-        except:
-            pass
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=500, detail="Stored migration steps are invalid") from exc
     
     return {
         "id": migration.id,
@@ -318,25 +248,10 @@ async def rollback_migration(
     
     if not migration or migration.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Migration not found")
-    
-    # Can only rollback failed migrations
-    if migration.status != MigrationStatus.FAILED.value:
-        raise HTTPException(status_code=400, detail="Can only rollback failed migrations")
-    
-    # Get provider adapters
-    from app.main import get_provider_adapters
-    provider_adapters = get_provider_adapters()
-    
-    # Rollback migration
-    migration_manager = MigrationManager()
-    success = await migration_manager.rollback_migration(
-        migration, session, provider_adapters
+    raise HTTPException(
+        status_code=501,
+        detail="Migration rollback is unavailable until state restoration and verification are implemented",
     )
-    
-    if not success:
-        raise HTTPException(status_code=500, detail="Rollback failed")
-    
-    return {"message": "Migration rolled back successfully"}
 
 
 # ==================== Failover Management ====================
@@ -382,47 +297,13 @@ async def create_failover_config(
     current_user: User = Depends(get_current_user)
 ):
     """Create a failover configuration."""
-    # Verify ownership
     deployment = session.get(Deployment, config_data.deployment_id)
     if not deployment or deployment.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Deployment not found")
-    
-    # Check if config already exists
-    existing = session.exec(
-        select(FailoverConfig).where(
-            FailoverConfig.deployment_id == config_data.deployment_id
-        )
-    ).first()
-    
-    if existing:
-        raise HTTPException(status_code=400, detail="Failover config already exists for this deployment")
-    
-    import json
-    config = FailoverConfig(
-        user_id=current_user.id,
-        deployment_id=config_data.deployment_id,
-        primary_provider=config_data.primary_provider,
-        backup_providers_json=json.dumps(config_data.backup_providers),
-        health_check_interval=config_data.health_check_interval,
-        failover_threshold=config_data.failover_threshold,
-        auto_failover_enabled=config_data.auto_failover_enabled,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+    raise HTTPException(
+        status_code=501,
+        detail="Automatic failover is unavailable until data transfer and verification are implemented",
     )
-    
-    session.add(config)
-    session.commit()
-    session.refresh(config)
-    
-    return {
-        "id": config.id,
-        "deployment_id": config.deployment_id,
-        "primary_provider": config.primary_provider,
-        "backup_providers": json.loads(config.backup_providers_json),
-        "health_check_interval": config.health_check_interval,
-        "failover_threshold": config.failover_threshold,
-        "auto_failover_enabled": config.auto_failover_enabled
-    }
 
 
 @router.put("/failover-configs/{config_id}")
@@ -437,6 +318,12 @@ async def update_failover_config(
     
     if not config or config.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Config not found")
+
+    if config_data.auto_failover_enabled:
+        raise HTTPException(
+            status_code=501,
+            detail="Automatic failover is unavailable until data transfer and verification are implemented",
+        )
     
     import json
     
@@ -497,13 +384,24 @@ async def create_task(
     current_user: User = Depends(get_current_user)
 ):
     """Enqueue a new batch task."""
+    try:
+        task_type = TaskType(task_data.task_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Invalid task type") from exc
+
+    if task_type == TaskType.SCHEDULED_MIGRATION:
+        raise HTTPException(
+            status_code=501,
+            detail="Scheduled migration is unavailable until data transfer and verification are implemented",
+        )
+
     task_queue = TaskQueueManager()
     
     scheduled_at = task_data.scheduled_at or datetime.utcnow()
     
     task = await task_queue.enqueue_task(
         user_id=current_user.id,
-        task_type=task_data.task_type,
+        task_type=task_type.value,
         task_config=task_data.task_config,
         priority=task_data.priority,
         scheduled_at=scheduled_at,
@@ -578,14 +476,14 @@ async def get_task(
     
     try:
         task_config = json.loads(task.task_config_json)
-    except:
-        pass
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=500, detail="Stored task configuration is invalid") from exc
     
     if task.result_json:
         try:
             result = json.loads(task.result_json)
-        except:
-            pass
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=500, detail="Stored task result is invalid") from exc
     
     return {
         "id": task.id,

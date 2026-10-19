@@ -43,7 +43,11 @@ export default function MonitoringPage() {
         const connectWs = async () => {
             const token = await getToken();
             const wsUrlBase = API_BASE_URL.replace(/^http/, 'ws');
-            const wsUrl = `${wsUrlBase}/deployments/${deploymentId}/metrics/stream`;
+            if (!token) {
+                setError("Authentication required");
+                return;
+            }
+            const wsUrl = `${wsUrlBase}/deployments/${deploymentId}/metrics/stream?token=${encodeURIComponent(token)}`;
 
             const ws = new WebSocket(wsUrl);
 

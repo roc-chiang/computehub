@@ -1,16 +1,13 @@
 "use client";
 
 import { API_BASE_URL } from "@/lib/api";
+import { useAuth } from "@clerk/nextjs";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Terminal as TerminalIcon, Maximize2, Minimize2, RefreshCw } from "lucide-react";
-
-// Note: xterm.js imports will be done dynamically to avoid SSR issues
-let Terminal: any;
-let FitAddon: any;
 
 interface WebTerminalProps {
     deploymentId: string | number;
@@ -20,6 +17,7 @@ interface WebTerminalProps {
 }
 
 export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: WebTerminalProps) {
+    const { getToken } = useAuth();
     const terminalRef = useRef<HTMLDivElement>(null);
     const [terminal, setTerminal] = useState<any>(null);
     const [fitAddon, setFitAddon] = useState<any>(null);
@@ -34,75 +32,64 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
 
-    // Load xterm.js dynamically
     useEffect(() => {
-        const loadXterm = async () => {
+        let disposed = false;
+        let term: any = null;
+
+        const initializeTerminal = async () => {
             try {
                 const { Terminal: XTerminal } = await import('xterm');
                 const { FitAddon: XFitAddon } = await import('xterm-addon-fit');
+                if (disposed || !terminalRef.current) return;
 
-                // Import CSS
-                await import('xterm/css/xterm.css');
+                term = new XTerminal({
+                    cursorBlink: true,
+                    fontSize: 14,
+                    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                    theme: {
+                        background: '#1e1e1e',
+                        foreground: '#d4d4d4',
+                        cursor: '#d4d4d4',
+                        black: '#000000',
+                        red: '#cd3131',
+                        green: '#0dbc79',
+                        yellow: '#e5e510',
+                        blue: '#2472c8',
+                        magenta: '#bc3fbc',
+                        cyan: '#11a8cd',
+                        white: '#e5e5e5',
+                        brightBlack: '#666666',
+                        brightRed: '#f14c4c',
+                        brightGreen: '#23d18b',
+                        brightYellow: '#f5f543',
+                        brightBlue: '#3b8eea',
+                        brightMagenta: '#d670d6',
+                        brightCyan: '#29b8db',
+                        brightWhite: '#e5e5e5'
+                    }
+                });
 
-                Terminal = XTerminal;
-                FitAddon = XFitAddon;
+                const fit = new XFitAddon();
+                term.loadAddon(fit);
+                term.open(terminalRef.current);
+                fit.fit();
+                term.writeln('Welcome to WebSSH Terminal');
+                term.writeln('');
+                setTerminal(term);
+                setFitAddon(fit);
             } catch (err) {
                 console.error("Failed to load xterm.js:", err);
                 setError("Failed to load terminal library");
             }
         };
 
-        loadXterm();
-    }, []);
-
-    // Initialize terminal
-    useEffect(() => {
-        if (!Terminal || !FitAddon || !terminalRef.current) return;
-
-        const term = new Terminal({
-            cursorBlink: true,
-            fontSize: 14,
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            theme: {
-                background: '#1e1e1e',
-                foreground: '#d4d4d4',
-                cursor: '#d4d4d4',
-                black: '#000000',
-                red: '#cd3131',
-                green: '#0dbc79',
-                yellow: '#e5e510',
-                blue: '#2472c8',
-                magenta: '#bc3fbc',
-                cyan: '#11a8cd',
-                white: '#e5e5e5',
-                brightBlack: '#666666',
-                brightRed: '#f14c4c',
-                brightGreen: '#23d18b',
-                brightYellow: '#f5f543',
-                brightBlue: '#3b8eea',
-                brightMagenta: '#d670d6',
-                brightCyan: '#29b8db',
-                brightWhite: '#e5e5e5'
-            }
-        });
-
-        const fit = new FitAddon();
-        term.loadAddon(fit);
-
-        term.open(terminalRef.current);
-        fit.fit();
-
-        setTerminal(term);
-        setFitAddon(fit);
-
-        // Welcome message
-        term.writeln('Welcome to WebSSH Terminal');
-        term.writeln('');
+        initializeTerminal();
 
         return () => {
-            term.dispose();
+            disposed = true;
+            term?.dispose();
         };
-    }, [Terminal, FitAddon]);
+    }, []);
 
     // WebSocket connection function
     const connectWebSocket = useCallback(async (attempt: number = 0) => {
@@ -125,7 +112,9 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
 
             // Get API URL from environment
             const wsUrlBase = API_BASE_URL.replace(/^http/, 'ws');
-            const url = `${wsUrlBase}/deployments/${deploymentId}/terminal`;
+            const token = await getToken();
+            if (!token) throw new Error("Authentication required");
+            const url = `${wsUrlBase}/deployments/${deploymentId}/terminal?token=${encodeURIComponent(token)}`;
 
             if (attempt === 0) {
                 terminal.writeln('Connecting to deployment...');
@@ -233,7 +222,7 @@ export function WebTerminal({ deploymentId, sshHost, sshPort, sshUsername }: Web
             setError('Connection failed');
             setConnecting(false);
         }
-    }, [terminal, deploymentId, maxReconnectAttempts]);
+    }, [terminal, deploymentId, maxReconnectAttempts, getToken]);
 
     // Connect on mount
     useEffect(() => {

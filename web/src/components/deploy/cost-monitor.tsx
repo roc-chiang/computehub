@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DollarSign, TrendingUp, AlertTriangle, Settings } from "lucide-react";
-import { getHeaders } from "@/lib/api";
+import { API_BASE_URL, getHeaders } from "@/lib/api";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface CostMonitorProps {
@@ -28,15 +28,12 @@ export function CostMonitor({ deploymentId }: CostMonitorProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isEditingLimit, setIsEditingLimit] = useState(false);
     const [newLimit, setNewLimit] = useState("");
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchCostData();
-    }, [deploymentId]);
-
-    const fetchCostData = async () => {
+    const fetchCostData = useCallback(async () => {
         try {
             const response = await fetch(
-                `/api/v1/automation/deployments/${deploymentId}/cost`,
+                `${API_BASE_URL}/automation/deployments/${deploymentId}/cost`,
                 { headers: getHeaders() }
             );
 
@@ -52,11 +49,49 @@ export function CostMonitor({ deploymentId }: CostMonitorProps) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [deploymentId]);
+
+    useEffect(() => {
+        fetchCostData();
+    }, [fetchCostData]);
 
     const saveCostLimit = async () => {
-        // TODO: Implement save cost limit API call
-        setIsEditingLimit(false);
+        const limit = Number(newLimit);
+        if (!Number.isFinite(limit) || limit <= 0) {
+            setSaveError("Enter a cost limit greater than zero");
+            return;
+        }
+
+        setSaveError(null);
+        try {
+            const listResponse = await fetch(`${API_BASE_URL}/automation/cost-limits`, { headers: getHeaders() });
+            if (!listResponse.ok) throw new Error("Unable to load current cost limit");
+            const limits: Array<{ id: number; deployment_id: number }> = await listResponse.json();
+            const existing = limits.find((item) => item.deployment_id === deploymentId);
+            const response = await fetch(
+                existing
+                    ? `${API_BASE_URL}/automation/cost-limits/${existing.id}`
+                    : `${API_BASE_URL}/automation/cost-limits`,
+                {
+                    method: existing ? "PUT" : "POST",
+                    headers: getHeaders(),
+                    body: JSON.stringify(existing
+                        ? { limit_amount: limit }
+                        : {
+                            deployment_id: deploymentId,
+                            limit_amount: limit,
+                            limit_period: "monthly",
+                            auto_shutdown_enabled: true,
+                            notify_at_percentage: 80,
+                        }),
+                }
+            );
+            if (!response.ok) throw new Error("Unable to save cost limit");
+            await fetchCostData();
+            setIsEditingLimit(false);
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : "Unable to save cost limit");
+        }
     };
 
     if (isLoading) {
@@ -188,6 +223,7 @@ export function CostMonitor({ deploymentId }: CostMonitorProps) {
                         <p className="text-xs text-muted-foreground mt-2">
                             Deployment will be automatically stopped when this limit is reached
                         </p>
+                        {saveError && <p className="text-xs text-destructive mt-2">{saveError}</p>}
                     </div>
                 )}
 

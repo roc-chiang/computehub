@@ -6,12 +6,16 @@ Handles webhook notifications via HTTP POST requests
 import asyncio
 import hmac
 import hashlib
+import ipaddress
 import json
+import socket
 from typing import Optional, Dict, Any
 from datetime import datetime
+from urllib.parse import urlparse
 import httpx
 from sqlmodel import Session, select
 from app.core.models import NotificationSettings
+from app.core.encryption import decrypt_value
 
 
 class WebhookService:
@@ -39,6 +43,31 @@ class WebhookService:
             hashlib.sha256
         ).hexdigest()
         return f"sha256={signature}"
+
+    async def _validate_public_url(self, url: str) -> None:
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("Webhook URL must use HTTP or HTTPS and include a hostname")
+        if parsed.username or parsed.password:
+            raise ValueError("Webhook URL credentials are not allowed")
+
+        try:
+            addresses = await asyncio.to_thread(
+                socket.getaddrinfo,
+                parsed.hostname,
+                parsed.port or (443 if parsed.scheme == "https" else 80),
+                type=socket.SOCK_STREAM,
+            )
+        except (OSError, ValueError) as exc:
+            raise ValueError("Webhook hostname could not be resolved") from exc
+
+        if not addresses:
+            raise ValueError("Webhook hostname could not be resolved")
+
+        for address in {item[4][0] for item in addresses}:
+            ip = ipaddress.ip_address(address)
+            if not ip.is_global:
+                raise ValueError("Webhook URL must resolve only to public IP addresses")
     
     async def send_webhook(
         self,
@@ -60,6 +89,8 @@ class WebhookService:
             True if successful, False otherwise
         """
         try:
+            await self._validate_public_url(url)
+
             # Convert payload to JSON string
             payload_str = json.dumps(payload, ensure_ascii=False)
             
@@ -90,7 +121,7 @@ class WebhookService:
                         
                         # Check if successful (2xx status code)
                         if 200 <= response.status_code < 300:
-                            print(f"✅ Webhook sent successfully to {url} (attempt {attempt + 1})")
+                            print(f"✅ Webhook sent successfully (attempt {attempt + 1})")
                             return True
                         else:
                             print(f"⚠️ Webhook failed with status {response.status_code} (attempt {attempt + 1})")
@@ -162,11 +193,19 @@ class WebhookService:
             "metadata": metadata or {}
         }
         
+        secret = None
+        if settings.webhook_secret:
+            try:
+                secret = decrypt_value(settings.webhook_secret)
+            except Exception:
+                print(f"❌ Webhook secret could not be decrypted for user {user_id}")
+                return False
+
         # Send webhook
         return await self.send_webhook(
             url=settings.webhook_url,
             payload=payload,
-            secret=settings.webhook_secret
+            secret=secret
         )
     
     async def test_webhook(

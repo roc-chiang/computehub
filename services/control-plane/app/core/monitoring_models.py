@@ -7,6 +7,7 @@ POS: Core data models for Phase 12 real-time monitoring
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
+from pydantic import ConfigDict
 
 
 class MetricsSnapshot(SQLModel, table=True):
@@ -41,8 +42,8 @@ class MetricsSnapshot(SQLModel, table=True):
     # 进程信息
     process_count: Optional[int] = None      # 运行进程数
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "deployment_id": 1,
                 "gpu_temperature": 65.0,
@@ -54,6 +55,7 @@ class MetricsSnapshot(SQLModel, table=True):
                 "memory_total": 32768
             }
         }
+    )
 
 
 class MonitoringAlert(SQLModel, table=True):
@@ -89,8 +91,8 @@ class MonitoringAlert(SQLModel, table=True):
     # 告警状态
     is_active: bool = Field(default=True, index=True)
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "deployment_id": 1,
                 "user_id": 1,
@@ -101,3 +103,4 @@ class MonitoringAlert(SQLModel, table=True):
                 "message": "GPU temperature is 85°C, exceeding threshold of 80°C"
             }
         }
+    )

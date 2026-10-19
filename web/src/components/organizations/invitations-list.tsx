@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Mail, X, Clock } from "lucide-react";
 import {
@@ -31,20 +31,7 @@ export function InvitationsList({ organizationId }: InvitationsListProps) {
     const { toast } = useToast();
     const { getToken } = useAuth();
 
-    useEffect(() => {
-        const initAuth = async () => {
-            const token = await getToken();
-            if (token) {
-                setAuthToken(token);
-                loadInvitations();
-            } else {
-                setLoading(false);
-            }
-        };
-        initAuth();
-    }, [organizationId, getToken]);
-
-    const loadInvitations = async () => {
+    const loadInvitations = useCallback(async () => {
         try {
             const data = await getInvitations(organizationId);
             setInvitations(data);
@@ -57,7 +44,20 @@ export function InvitationsList({ organizationId }: InvitationsListProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [organizationId, toast]);
+
+    useEffect(() => {
+        const initAuth = async () => {
+            const token = await getToken();
+            if (token) {
+                setAuthToken(token);
+                loadInvitations();
+            } else {
+                setLoading(false);
+            }
+        };
+        initAuth();
+    }, [getToken, loadInvitations]);
 
     const handleCancelInvitation = async (invitationId: number) => {
         try {

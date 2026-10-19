@@ -24,7 +24,7 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
     callback: T,
     delay: number = 500
 ): (...args: Parameters<T>) => void {
-    const timeoutRef = useRef<NodeJS.Timeout>();
+    const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     return useCallback(
         (...args: Parameters<T>) => {
@@ -41,7 +41,7 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 }
 
 export function useAbortController() {
-    const abortControllerRef = useRef<AbortController>();
+    const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
     useEffect(() => {
         return () => {

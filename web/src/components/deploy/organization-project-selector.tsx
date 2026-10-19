@@ -56,7 +56,7 @@ export function OrganizationProjectSelector({
             }
         };
         loadOrganizations();
-    }, [getToken]);
+    }, [getToken, onOrganizationChange, organizationId]);
 
     // Load projects when organization changes
     useEffect(() => {
@@ -94,7 +94,7 @@ export function OrganizationProjectSelector({
             }
         };
         loadProjects();
-    }, [organizationId, getToken]);
+    }, [getToken, onProjectChange, organizationId, projectId]);
 
     if (loading) {
         return <div className="text-sm text-text-secondary">Loading organizations...</div>;

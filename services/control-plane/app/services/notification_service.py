@@ -4,7 +4,7 @@ Unified service for sending notifications via multiple channels
 """
 
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Set
 from sqlmodel import Session, select
 from datetime import datetime
 from app.core.models import (
@@ -34,7 +34,8 @@ class NotificationService:
         event_type: NotificationEventType,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        channels: Optional[Set[NotificationChannel]] = None,
     ) -> Dict[str, bool]:
         """
         Send notification to user via all enabled channels
@@ -70,7 +71,11 @@ class NotificationService:
         results = {}
         
         # Send via Telegram
-        if settings.enable_telegram and settings.telegram_chat_id:
+        if (
+            (channels is None or NotificationChannel.TELEGRAM in channels)
+            and settings.enable_telegram
+            and settings.telegram_chat_id
+        ):
             try:
                 success = await self.telegram.send_notification(
                     user_id, title, message, event_type.value
@@ -91,7 +96,11 @@ class NotificationService:
                 )
         
         # Send via Email
-        if settings.enable_email and settings.email:
+        if (
+            (channels is None or NotificationChannel.EMAIL in channels)
+            and settings.enable_email
+            and settings.email
+        ):
             try:
                 success = await self.email.send_notification(
                     user_id, title, message, event_type.value
@@ -112,7 +121,11 @@ class NotificationService:
                 )
         
         # Send via Webhook
-        if settings.enable_webhook and settings.webhook_url:
+        if (
+            (channels is None or NotificationChannel.WEBHOOK in channels)
+            and settings.enable_webhook
+            and settings.webhook_url
+        ):
             try:
                 success = await self.webhook.send_notification(
                     user_id, title, message, event_type.value, metadata

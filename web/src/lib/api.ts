@@ -8,7 +8,6 @@ if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
 }
 
 export const API_BASE_URL = `${rawBaseUrl}/api/v1`;
-console.log('[API] API_BASE_URL:', API_BASE_URL, 'NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
 
 let authToken: string | null = null;
 
@@ -35,7 +34,6 @@ export interface Deployment {
     gpu_count: number;
     endpoint_url?: string;
     ssh_connection_string?: string;
-    ssh_password?: string;
     image: string;
     instance_id?: string;
     vcpu_count?: number;
@@ -49,6 +47,7 @@ export interface Deployment {
     project_id?: number;
     organization_name?: string;
     project_name?: string;
+    sync_error?: string;
     created_at: string;
 }
 
@@ -65,12 +64,6 @@ export interface DeploymentCreate {
 }
 
 export async function getDeployments(): Promise<Deployment[]> {
-    // In a real app, we would list deployments. 
-    // Since our API currently only gets by ID, we might need to add a list endpoint.
-    // For MVP, let's just mock a list or try to fetch a few known IDs if we can't list.
-    // WAIT: I missed adding a list endpoint in the backend plan!
-    // I will add a list endpoint to the backend now as well, or just mock it here for a second.
-    // Let's assume I will add GET /deployments/ to backend.
     const res = await fetch(`${API_BASE_URL}/deployments/`, { headers: getHeaders() });
     if (!res.ok) throw new Error("Failed to fetch deployments");
     return res.json();
@@ -92,14 +85,11 @@ export async function createDeployment(data: DeploymentCreate): Promise<Deployme
     if (!res.ok) {
         // Try to parse error response
         const responseText = await res.text();
-        console.log("Error response:", responseText);
-
         let errorDetail = null;
 
         // Try to parse as JSON
         try {
             const errorData = JSON.parse(responseText);
-            console.log("Parsed error data:", errorData);
             errorDetail = errorData.detail;
         } catch (parseError) {
             console.error("Failed to parse JSON, treating as text error");
@@ -210,9 +200,9 @@ export interface UsageStats {
     gpu_count: number;
     gpu_type: string;
     total_gpu_hours: number;
-    cost_per_gpu_hour: number;
-    cost_per_hour: number;
-    estimated_cost_usd: number;
+    cost_per_gpu_hour: number | null;
+    cost_per_hour: number | null;
+    recorded_cost_usd: number;
     status: string;
 }
 
@@ -264,7 +254,7 @@ export async function createProvider(data: ProviderCreate): Promise<Provider> {
 
 export async function updateProvider(id: number, data: Partial<ProviderCreate>): Promise<Provider> {
     const res = await fetch(`${API_BASE_URL}/admin/providers/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify(data),
     });

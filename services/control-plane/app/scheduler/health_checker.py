@@ -6,7 +6,6 @@ Pos: Phase 9 自动化引擎的健康检查核心,被 automation_tasks 定时调
 一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
-import asyncio
 import time
 from datetime import datetime
 from typing import Optional
@@ -45,7 +44,9 @@ class HealthChecker:
         start_time = time.time()
         
         # Determine endpoint to check
-        endpoint_url = deployment.endpoint_url or f"http://localhost:8080"
+        if not deployment.endpoint_url:
+            raise ValueError("Deployment has no health-check endpoint")
+        endpoint_url = deployment.endpoint_url
         
         try:
             # Perform HTTP health check
@@ -130,6 +131,9 @@ class HealthChecker:
         # Check each deployment
         health_logs = []
         for deployment in deployments:
+            if not deployment.endpoint_url:
+                print(f"[HealthChecker] Skipping deployment {deployment.id}: no endpoint")
+                continue
             try:
                 health_log = await self.check_deployment(deployment, session)
                 health_logs.append(health_log)

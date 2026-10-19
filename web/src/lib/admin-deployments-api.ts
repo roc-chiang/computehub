@@ -1,4 +1,4 @@
-import { Deployment } from "./api";
+import { API_BASE_URL, Deployment, getHeaders } from "./api";
 
 export interface DeploymentListItem {
     id: number;
@@ -37,21 +37,21 @@ export async function getAllDeployments(params?: {
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
 
-    const response = await fetch(`/api/v1/admin/deployments?${queryParams}`);
+    const response = await fetch(`${API_BASE_URL}/admin/deployments?${queryParams}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch deployments');
     return response.json();
 }
 
 export async function getDeploymentStats(): Promise<DeploymentStats> {
-    const response = await fetch('/api/v1/admin/deployments/stats');
+    const response = await fetch(`${API_BASE_URL}/admin/deployments/stats`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch deployment stats');
     return response.json();
 }
 
 export async function batchDeploymentOperation(deploymentIds: number[], operation: 'stop' | 'delete') {
-    const response = await fetch('/api/v1/admin/deployments/batch', {
+    const response = await fetch(`${API_BASE_URL}/admin/deployments/batch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({
             deployment_ids: deploymentIds,
             operation
@@ -62,16 +62,18 @@ export async function batchDeploymentOperation(deploymentIds: number[], operatio
 }
 
 export async function stopDeployment(deploymentId: number) {
-    const response = await fetch(`/api/v1/admin/deployments/${deploymentId}/stop`, {
+    const response = await fetch(`${API_BASE_URL}/admin/deployments/${deploymentId}/stop`, {
         method: 'POST',
+        headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to stop deployment');
     return response.json();
 }
 
 export async function deleteDeployment(deploymentId: number) {
-    const response = await fetch(`/api/v1/admin/deployments/${deploymentId}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/deployments/${deploymentId}`, {
         method: 'DELETE',
+        headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to delete deployment');
     return response.json();

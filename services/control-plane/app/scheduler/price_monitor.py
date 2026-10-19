@@ -11,9 +11,11 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from sqlmodel import Session, select
 
-from app.core.models import Deployment, DeploymentStatus
+from app.core.models import Deployment, DeploymentStatus, NotificationEventType, User
 from app.core.automation_models import PriceHistory, AutomationRule, AutomationLog, AutomationActionType, AutomationResultType
 from app.adapters.base import ProviderAdapter
+from app.core.provider_manager import ProviderManager
+from app.services.notification_service import NotificationService
 
 
 class PriceMonitor:
@@ -58,10 +60,7 @@ class PriceMonitor:
         for deployment in deployments:
             try:
                 # Get current price from provider adapter
-                adapter = provider_adapters.get(deployment.provider)
-                if not adapter:
-                    print(f"[PriceMonitor] No adapter for provider: {deployment.provider}")
-                    continue
+                adapter = ProviderManager.get_deployment_adapter(deployment, session)
                 
                 current_price = await adapter.get_pricing(deployment.gpu_type)
                 if current_price is None:
@@ -76,15 +75,18 @@ class PriceMonitor:
                 if last_price_record is None:
                     should_record = True  # First time tracking
                 else:
-                    price_change = abs(current_price - last_price_record.price_per_hour) / last_price_record.price_per_hour
-                    if price_change >= self.price_change_threshold:
+                    if last_price_record.price_per_hour <= 0:
                         should_record = True
+                    else:
+                        price_change = abs(current_price - last_price_record.price_per_hour) / last_price_record.price_per_hour
+                        if price_change >= self.price_change_threshold:
+                            should_record = True
                 
                 if should_record:
                     # Create price history record
                     price_record = PriceHistory(
                         deployment_id=deployment.id,
-                        provider=deployment.provider,
+                        provider=deployment.provider.value,
                         gpu_type=deployment.gpu_type,
                         price_per_hour=current_price,
                         recorded_at=datetime.utcnow()
@@ -150,13 +152,31 @@ class PriceMonitor:
                 max_price = config.get("max_price_per_hour")
                 
                 if max_price and current_price > max_price:
-                    # Trigger alert
+                    owner = session.get(User, deployment.user_id)
+                    delivery_results = {}
+                    if owner and owner.clerk_id:
+                        delivery_results = await NotificationService(session).send_notification(
+                            user_id=owner.clerk_id,
+                            event_type=NotificationEventType.PRICE_CHANGE,
+                            title=f"Price Alert: {deployment.name}",
+                            message=(
+                                f"Current price ${current_price:.4f}/hr exceeds your "
+                                f"${max_price:.4f}/hr threshold."
+                            ),
+                            metadata={"deployment_id": deployment.id, "rule_id": rule.id},
+                        )
+                    delivered = any(delivery_results.values())
                     log = AutomationLog(
                         deployment_id=deployment.id,
                         rule_id=rule.id,
                         action=AutomationActionType.ALERT.value,
                         trigger_reason=f"Price exceeded limit: ${current_price}/hr > ${max_price}/hr",
-                        result=AutomationResultType.SUCCESS.value,
+                        result=(
+                            AutomationResultType.SUCCESS.value
+                            if delivered
+                            else AutomationResultType.FAILED.value
+                        ),
+                        error_message=None if delivered else "No notification channel delivered the price alert",
                         created_at=datetime.utcnow()
                     )
                     session.add(log)
@@ -167,7 +187,7 @@ class PriceMonitor:
                     session.add(rule)
                     
                     session.commit()
-                    print(f"[PriceMonitor] Price alert triggered for deployment {deployment.id}")
+                    print(f"[PriceMonitor] Price alert evaluated for deployment {deployment.id}")
                     
             except Exception as e:
                 print(f"[PriceMonitor] Error checking price alert for rule {rule.id}: {e}")

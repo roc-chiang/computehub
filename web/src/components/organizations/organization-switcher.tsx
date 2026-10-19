@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Building2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,17 @@ export function OrganizationSwitcher({ currentOrgId }: OrganizationSwitcherProps
     const router = useRouter();
     const { getToken } = useAuth();
 
+    const loadOrganizations = useCallback(async () => {
+        try {
+            const orgs = await getOrganizations();
+            setOrganizations(orgs);
+        } catch (error) {
+            console.error("Failed to load organizations:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         const initAuth = async () => {
             const token = await getToken();
@@ -37,18 +48,7 @@ export function OrganizationSwitcher({ currentOrgId }: OrganizationSwitcherProps
             }
         };
         initAuth();
-    }, []);
-
-    const loadOrganizations = async () => {
-        try {
-            const orgs = await getOrganizations();
-            setOrganizations(orgs);
-        } catch (error) {
-            console.error("Failed to load organizations:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [getToken, loadOrganizations]);
 
     const currentOrg = organizations.find((org) => org.id === currentOrgId);
 

@@ -1,10 +1,13 @@
-from pydantic_settings import BaseSettings
+from typing import Optional
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     PROJECT_NAME: str = "ComputeHub"
 
     # Database
-    DATABASE_URL: str = None
+    DATABASE_URL: Optional[str] = None
     
     # PostgreSQL (optional, only if not using DATABASE_URL)
     POSTGRES_SERVER: str = "localhost"
@@ -32,8 +35,20 @@ class Settings(BaseSettings):
     # Testing Mode
     DRY_RUN: bool = False  # If True, don't make real API calls to providers
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"  # Ignore other extra fields if any
+    @model_validator(mode="after")
+    def validate_production_secrets(self):
+        if self.ENVIRONMENT == "production":
+            unsafe_values = {
+                "POSTGRES_PASSWORD": (self.POSTGRES_PASSWORD, "postgres"),
+                "MINIO_ACCESS_KEY": (self.MINIO_ACCESS_KEY, "minio"),
+                "MINIO_SECRET_KEY": (self.MINIO_SECRET_KEY, "minio123"),
+                "SECRET_KEY": (self.SECRET_KEY, "supersecret"),
+            }
+            invalid = [name for name, (value, default) in unsafe_values.items() if not value or value == default]
+            if invalid:
+                raise ValueError(f"Unsafe production configuration: {', '.join(invalid)}")
+            if self.DRY_RUN:
+                raise ValueError("DRY_RUN cannot be enabled in production")
+        return self
 
 settings = Settings()

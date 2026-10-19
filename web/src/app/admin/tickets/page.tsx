@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,11 +52,7 @@ export default function TicketsPage() {
 
     const { toast } = useToast();
 
-    useEffect(() => {
-        fetchData();
-    }, [statusFilter, priorityFilter, categoryFilter, searchQuery]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [statsData, ticketsData] = await Promise.all([
@@ -79,7 +75,11 @@ export default function TicketsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [categoryFilter, priorityFilter, searchQuery, statusFilter, toast]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const handleTicketClick = async (ticketId: number) => {
         setDetailLoading(true);

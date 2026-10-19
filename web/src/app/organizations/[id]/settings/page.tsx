@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { ArrowLeft, Trash2 } from "lucide-react";
@@ -31,6 +31,18 @@ export default function OrganizationSettingsPage() {
     const [saving, setSaving] = useState(false);
     const { toast } = useToast();
 
+    const loadOrganization = useCallback(async () => {
+        try {
+            const org = await getOrganization(organizationId);
+            setOrganization(org);
+            setName(org.name);
+        } catch (error) {
+            console.error("Failed to load organization:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [organizationId]);
+
     useEffect(() => {
         const initAuth = async () => {
             const token = await getToken();
@@ -42,19 +54,7 @@ export default function OrganizationSettingsPage() {
             }
         };
         initAuth();
-    }, [organizationId]);
-
-    const loadOrganization = async () => {
-        try {
-            const org = await getOrganization(organizationId);
-            setOrganization(org);
-            setName(org.name);
-        } catch (error) {
-            console.error("Failed to load organization:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [getToken, loadOrganization]);
 
     const handleSave = async () => {
         if (!name.trim()) {

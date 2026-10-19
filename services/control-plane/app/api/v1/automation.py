@@ -10,54 +10,11 @@ from typing import Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.db import get_session
-from app.core.auth import verify_token
+from app.core.auth import get_current_user
 from app.core.models import User, Deployment
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-security = HTTPBearer()
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
-) -> User:
-    token = credentials.credentials
-    payload = verify_token(token, session)
-    
-    clerk_id = payload.get("sub")
-    if not clerk_id:
-        raise HTTPException(status_code=401, detail="Invalid token: missing sub")
-        
-    # Lazy User Creation / Sync
-    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
-    
-    if not user:
-        email = payload.get("email")
-        if not email:
-            email = f"{clerk_id}@clerk.user" 
-            
-        existing_email_user = session.exec(select(User).where(User.email == email)).first()
-        if existing_email_user:
-            existing_email_user.clerk_id = clerk_id
-            existing_email_user.auth_provider = "clerk"
-            session.add(existing_email_user)
-            session.commit()
-            session.refresh(existing_email_user)
-            return existing_email_user
-        
-        user = User(
-            email=email,
-            clerk_id=clerk_id,
-            auth_provider="clerk",
-            plan="free"
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-        
-    return user
 
 from app.core.automation_models import (
     AutomationRule,
@@ -418,26 +375,17 @@ async def get_deployment_cost(
         deployment_id, session, days=30
     )
     
-    # Get cost limit rule
-    statement = select(AutomationRule).where(
-        AutomationRule.deployment_id == deployment_id,
-        AutomationRule.rule_type == AutomationRuleType.COST_LIMIT.value,
-        AutomationRule.is_enabled == True
-    )
-    cost_rule = session.exec(statement).first()
-    
-    cost_limit = None
+    cost_limit_record = session.exec(
+        select(CostLimit).where(
+            CostLimit.deployment_id == deployment_id,
+            CostLimit.user_id == current_user.id,
+        )
+    ).first()
+
+    cost_limit = cost_limit_record.limit_amount if cost_limit_record else None
     percentage_used = None
-    
-    if cost_rule:
-        import json
-        try:
-            config = json.loads(cost_rule.config_json)
-            cost_limit = config.get("max_cost_usd", 0)
-            if cost_limit > 0:
-                percentage_used = (summary["total_cost"] / cost_limit) * 100
-        except:
-            pass
+    if cost_limit and cost_limit > 0:
+        percentage_used = (summary["total_cost"] / cost_limit) * 100
     
     # Estimate month-end cost
     days_in_month = 30
@@ -505,14 +453,14 @@ from app.scheduler.cost_limit_manager import CostLimitManager
 
 class CostLimitCreate(BaseModel):
     deployment_id: int
-    limit_amount: float
+    limit_amount: float = Field(gt=0)
     limit_period: str = "daily"  # daily, weekly, monthly, total
     auto_shutdown_enabled: bool = True
     notify_at_percentage: int = 80
 
 
 class CostLimitUpdate(BaseModel):
-    limit_amount: Optional[float] = None
+    limit_amount: Optional[float] = Field(default=None, gt=0)
     limit_period: Optional[str] = None
     auto_shutdown_enabled: Optional[bool] = None
     notify_at_percentage: Optional[int] = None

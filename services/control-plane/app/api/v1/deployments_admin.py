@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, or_, func
 from app.core.db import get_session
 from app.core.models import Deployment, DeploymentStatus, User
+from app.core.provider_manager import ProviderManager
+from app.core.automation_models import CostTracking
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -79,11 +81,11 @@ async def list_all_deployments(
     # Build response
     deployments = []
     for deployment, user in results:
-        # Calculate estimated cost (mock for now)
-        estimated_cost = 0.0
-        if deployment.uptime_seconds:
-            # Assume $0.50/hour average
-            estimated_cost = (deployment.uptime_seconds / 3600.0) * 0.50
+        estimated_cost = session.exec(
+            select(func.coalesce(func.sum(CostTracking.cost_usd), 0.0)).where(
+                CostTracking.deployment_id == deployment.id
+            )
+        ).one()
         
         deployments.append(DeploymentListItem(
             id=deployment.id,
@@ -115,14 +117,12 @@ async def get_deployment_stats(
     total_deployments = len(deployments)
     active_deployments = len([d for d in deployments if d.status == DeploymentStatus.RUNNING])
     
-    # Calculate total GPU hours
-    total_gpu_hours = 0.0
-    for deployment in deployments:
-        if deployment.uptime_seconds:
-            total_gpu_hours += deployment.uptime_seconds / 3600.0
-    
-    # Calculate total cost (mock)
-    total_cost = total_gpu_hours * 0.50  # $0.50/hour average
+    total_gpu_hours, total_cost = session.exec(
+        select(
+            func.coalesce(func.sum(CostTracking.gpu_hours), 0.0),
+            func.coalesce(func.sum(CostTracking.cost_usd), 0.0),
+        )
+    ).one()
     
     return DeploymentStats(
         total_deployments=total_deployments,
@@ -160,13 +160,20 @@ async def batch_operation(
         
         try:
             if batch_op.operation == "stop":
-                # TODO: Call provider adapter to stop deployment
+                if not deployment.instance_id:
+                    raise ValueError("Deployment has no provider instance")
+                adapter = ProviderManager.get_deployment_adapter(deployment, session)
+                if not await adapter.stop_instance(deployment.instance_id):
+                    raise RuntimeError("Provider did not stop the instance")
                 deployment.status = DeploymentStatus.STOPPED
                 session.add(deployment)
                 results["success"].append(deployment_id)
             
             elif batch_op.operation == "delete":
-                # TODO: Call provider adapter to delete deployment
+                if deployment.instance_id:
+                    adapter = ProviderManager.get_deployment_adapter(deployment, session)
+                    if not await adapter.delete_instance(deployment.instance_id):
+                        raise RuntimeError("Provider did not delete the instance")
                 session.delete(deployment)
                 results["success"].append(deployment_id)
         
@@ -199,7 +206,15 @@ async def delete_deployment(
     if not deployment:
         raise HTTPException(status_code=404, detail="Deployment not found")
     
-    # TODO: Call provider adapter to delete deployment
+    if deployment.instance_id:
+        try:
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
+            if not await adapter.delete_instance(deployment.instance_id):
+                raise HTTPException(status_code=502, detail="Provider did not delete the instance")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Provider deletion failed") from exc
     session.delete(deployment)
     session.commit()
     
@@ -218,7 +233,16 @@ async def stop_deployment(
     if not deployment:
         raise HTTPException(status_code=404, detail="Deployment not found")
     
-    # TODO: Call provider adapter to stop deployment
+    if not deployment.instance_id:
+        raise HTTPException(status_code=400, detail="Deployment has no provider instance")
+    try:
+        adapter = ProviderManager.get_deployment_adapter(deployment, session)
+        if not await adapter.stop_instance(deployment.instance_id):
+            raise HTTPException(status_code=502, detail="Provider did not stop the instance")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Provider stop failed") from exc
     deployment.status = DeploymentStatus.STOPPED
     session.add(deployment)
     session.commit()

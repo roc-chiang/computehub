@@ -2,9 +2,6 @@ import { LandingHeader } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 
 export default function ContactPage() {
     return (
@@ -24,44 +21,16 @@ export default function ContactPage() {
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-12">
-                        {/* Contact Form */}
-                        <div className="space-y-6">
-                            <div>
-                                <Label htmlFor="name">Name</Label>
-                                <Input
-                                    id="name"
-                                    placeholder="Your name"
-                                    className="mt-2 bg-cream-100 border-cream-200"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="your@email.com"
-                                    className="mt-2 bg-cream-100 border-cream-200"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="subject">Subject</Label>
-                                <Input
-                                    id="subject"
-                                    placeholder="How can we help?"
-                                    className="mt-2 bg-cream-100 border-cream-200"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="message">Message</Label>
-                                <Textarea
-                                    id="message"
-                                    placeholder="Tell us more..."
-                                    rows={6}
-                                    className="mt-2 bg-cream-100 border-cream-200"
-                                />
-                            </div>
-                            <Button className="w-full bg-brand hover:bg-brand-dark text-white">
-                                Send Message
+                        <div className="flex flex-col justify-center rounded-lg border border-cream-200 bg-cream-100 p-8">
+                            <h2 className="homepage-h2 text-text-primary">How can we help?</h2>
+                            <p className="homepage-body mt-3 text-text-secondary">
+                                Send us an email with your question, account email, and any relevant deployment details.
+                            </p>
+                            <Button asChild className="mt-6 w-full bg-brand text-white hover:bg-brand-dark">
+                                <a href="mailto:info@pardpro.ca?subject=ComputeHub%20support%20request">
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Email Support
+                                </a>
                             </Button>
                         </div>
 

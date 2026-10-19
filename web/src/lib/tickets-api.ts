@@ -2,7 +2,7 @@
 import { TicketStatus, TicketPriority, TicketCategory, type TicketReply } from "./admin-tickets-api";
 export { TicketStatus, TicketPriority, TicketCategory, type TicketReply };
 
-import { API_BASE_URL } from "./api";
+import { API_BASE_URL, getHeaders } from "./api";
 
 // User-facing tickets API
 export interface CreateTicketRequest {
@@ -39,7 +39,7 @@ export interface UserTicketDetail {
 export async function createTicket(data: CreateTicketRequest): Promise<UserTicketDetail> {
     const response = await fetch(`${API_BASE_URL}/tickets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to create ticket');
@@ -50,13 +50,13 @@ export async function getMyTickets(status?: TicketStatus): Promise<UserTicketLis
     const url = status
         ? `${API_BASE_URL}/tickets?status=${status}`
         : `${API_BASE_URL}/tickets`;
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch tickets');
     return response.json();
 }
 
 export async function getMyTicketDetail(ticketId: number): Promise<UserTicketDetail> {
-    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`);
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch ticket detail');
     return response.json();
 }
@@ -64,7 +64,7 @@ export async function getMyTicketDetail(ticketId: number): Promise<UserTicketDet
 export async function replyToMyTicket(ticketId: number, message: string): Promise<TicketReply> {
     const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ message }),
     });
     if (!response.ok) throw new Error('Failed to reply to ticket');

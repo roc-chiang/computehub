@@ -15,8 +15,9 @@ import json
 
 from app.core.db import get_session
 from app.core.models import User, Deployment
+from app.core.auth import _get_or_create_user, verify_token
 from app.core.monitoring_models import MetricsSnapshot, MonitoringAlert
-from app.api.v1.deployments import get_current_user
+from app.api.v1.deployments import get_current_user, get_deployment_ssh_password
 from app.services.gpu_monitor import gpu_monitor
 
 
@@ -220,9 +221,22 @@ async def metrics_stream(
     await manager.connect(websocket, deployment_id)
     
     try:
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.send_json({"type": "error", "message": "Authentication required"})
+            await websocket.close()
+            return
+
+        try:
+            current_user = _get_or_create_user(verify_token(token, session), session)
+        except HTTPException:
+            await websocket.send_json({"type": "error", "message": "Authentication failed"})
+            await websocket.close()
+            return
+
         # 获取部署信息
         deployment = session.get(Deployment, deployment_id)
-        if not deployment:
+        if not deployment or deployment.user_id != current_user.id:
             await websocket.send_json({"error": "Deployment not found"})
             await websocket.close()
             return
@@ -236,7 +250,7 @@ async def metrics_stream(
                         host=deployment.ssh_host,
                         port=deployment.ssh_port,
                         username=deployment.ssh_username or "root",
-                        password=deployment.ssh_password
+                        password=get_deployment_ssh_password(deployment)
                     )
                     
                     # 保存到数据库

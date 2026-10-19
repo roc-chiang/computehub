@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Rocket, Zap, ChevronDown, ChevronUp } from "lucide-react";
@@ -58,21 +58,7 @@ export default function QuickDeploy() {
     const [showProviderOptions, setShowProviderOptions] = useState(false);
     const [creating, setCreating] = useState(false);
 
-    // Auto-fill image when workload type changes
-    useEffect(() => {
-        if (workloadType) {
-            setImage(WORKLOAD_CONFIGS[workloadType].defaultImage);
-            fetchAvailability();
-
-            // Auto-generate deployment name based on workload type
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
-            const workloadName = workloadType.toLowerCase();
-            setName(`${workloadName}-${timestamp}`);
-        }
-    }, [workloadType]);
-
-    // Fetch availability
-    const fetchAvailability = async () => {
+    const fetchAvailability = useCallback(async () => {
         if (!workloadType) return;
 
         setLoading(true);
@@ -114,7 +100,16 @@ export default function QuickDeploy() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken, workloadType]);
+
+    useEffect(() => {
+        if (workloadType) {
+            setImage(WORKLOAD_CONFIGS[workloadType].defaultImage);
+            fetchAvailability();
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+            setName(`${workloadType.toLowerCase()}-${timestamp}`);
+        }
+    }, [fetchAvailability, workloadType]);
 
     const handleCreate = async () => {
         if (!selectedProvider || !name || !image || !workloadType) return;

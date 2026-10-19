@@ -9,7 +9,7 @@ Pos: Phase 9 Week 3 成本上限管理器,监控部署成本并在超限时自�
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from sqlmodel import Session, select
-from app.core.models import Deployment, DeploymentStatus
+from app.core.models import Deployment, DeploymentStatus, NotificationEventType, User
 from app.core.automation_models import CostLimit, CostTracking, CostLimitPeriod
 from app.services.notification_service import NotificationService
 
@@ -26,7 +26,7 @@ class CostLimitManager:
     """
     
     def __init__(self):
-        self.notification_service = None
+        pass
     
     async def check_cost_limits(self, session: Session, provider_adapters: Dict) -> List[CostLimit]:
         """
@@ -123,12 +123,12 @@ class CostLimitManager:
         cost_records = session.exec(
             select(CostTracking).where(
                 CostTracking.deployment_id == deployment.id,
-                CostTracking.recorded_at >= start_time
+                CostTracking.period_end >= start_time
             )
         ).all()
         
         # Sum up costs
-        total_cost = sum(record.cost_amount for record in cost_records)
+        total_cost = sum(record.cost_usd for record in cost_records)
         
         return total_cost
     
@@ -156,20 +156,19 @@ class CostLimitManager:
             
             # Get provider adapter
             from app.core.provider_manager import ProviderManager
-            adapter = ProviderManager.get_adapter(
-                deployment.provider,
-                session,
-                user_api_key=None  # Use system credentials
-            )
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             
             # Stop the deployment
-            result = await adapter.stop_deployment(deployment.provider_deployment_id)
+            if not deployment.instance_id:
+                raise ValueError("Deployment has no provider instance")
+            result = await adapter.stop_instance(deployment.instance_id)
             
-            if result.get("success"):
+            if result:
                 # Update deployment status
                 deployment.status = DeploymentStatus.STOPPED
                 deployment.updated_at = datetime.utcnow()
                 session.add(deployment)
+                session.commit()
                 
                 # Send shutdown notification
                 await self.send_shutdown_notification(
@@ -179,7 +178,7 @@ class CostLimitManager:
                 print(f"[CostLimit] ✓ Deployment {deployment.id} shut down successfully")
                 return True
             else:
-                print(f"[CostLimit] ✗ Failed to shutdown deployment {deployment.id}: {result.get('error')}")
+                print(f"[CostLimit] ✗ Failed to shutdown deployment {deployment.id}")
                 return False
                 
         except Exception as e:
@@ -205,8 +204,10 @@ class CostLimitManager:
             session: Database session
         """
         try:
-            if not self.notification_service:
-                self.notification_service = NotificationService(session)
+            owner = session.get(User, cost_limit.user_id)
+            if not owner or not owner.clerk_id:
+                raise ValueError("Cost limit owner has no authentication account")
+            notification_service = NotificationService(session)
             
             message = (
                 f"⚠️ Cost Alert: Deployment '{deployment.name}' "
@@ -217,15 +218,18 @@ class CostLimitManager:
                 f"Auto-shutdown will trigger at 100%."
             )
             
-            await self.notification_service.send_notification(
-                user_id=cost_limit.user_id,
+            results = await notification_service.send_notification(
+                user_id=owner.clerk_id,
+                event_type=NotificationEventType.COST_ALERT,
                 title="Cost Limit Alert",
                 message=message,
-                notification_type="cost_alert",
-                related_deployment_id=deployment.id
+                metadata={"deployment_id": deployment.id, "cost_limit_id": cost_limit.id},
             )
-            
-            print(f"[CostLimit] ✓ Cost alert sent for deployment {deployment.id}")
+
+            if any(results.values()):
+                print(f"[CostLimit] ✓ Cost alert sent for deployment {deployment.id}")
+            else:
+                print(f"[CostLimit] No notification channel delivered cost alert for deployment {deployment.id}")
             
         except Exception as e:
             print(f"[CostLimit] ✗ Failed to send cost alert: {e}")
@@ -245,8 +249,10 @@ class CostLimitManager:
             session: Database session
         """
         try:
-            if not self.notification_service:
-                self.notification_service = NotificationService(session)
+            owner = session.get(User, cost_limit.user_id)
+            if not owner or not owner.clerk_id:
+                raise ValueError("Cost limit owner has no authentication account")
+            notification_service = NotificationService(session)
             
             message = (
                 f"🛑 Auto-Shutdown: Deployment '{deployment.name}' "
@@ -257,15 +263,18 @@ class CostLimitManager:
                 f"The deployment has been stopped to prevent further costs."
             )
             
-            await self.notification_service.send_notification(
-                user_id=cost_limit.user_id,
+            results = await notification_service.send_notification(
+                user_id=owner.clerk_id,
+                event_type=NotificationEventType.COST_ALERT,
                 title="Deployment Auto-Shutdown",
                 message=message,
-                notification_type="auto_shutdown",
-                related_deployment_id=deployment.id
+                metadata={"deployment_id": deployment.id, "cost_limit_id": cost_limit.id},
             )
-            
-            print(f"[CostLimit] ✓ Shutdown notification sent for deployment {deployment.id}")
+
+            if any(results.values()):
+                print(f"[CostLimit] ✓ Shutdown notification sent for deployment {deployment.id}")
+            else:
+                print(f"[CostLimit] No notification channel delivered shutdown alert for deployment {deployment.id}")
             
         except Exception as e:
             print(f"[CostLimit] ✗ Failed to send shutdown notification: {e}")

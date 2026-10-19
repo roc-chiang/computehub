@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-xl font-bold">
-                            ${stats?.revenue.total.toFixed(2) || '0.00'}
+                            {stats?.revenue.total == null ? 'Not connected' : `$${stats.revenue.total.toFixed(2)}`}
                         </div>
                         <p className="text-xs text-text-secondary">
                             Stripe integration pending

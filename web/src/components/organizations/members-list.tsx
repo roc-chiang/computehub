@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { UserPlus, MoreVertical, Mail, Trash2 } from "lucide-react";
 import {
@@ -48,20 +48,7 @@ export function MembersList({ organizationId, currentUserRole }: MembersListProp
     const { toast } = useToast();
     const { getToken } = useAuth();
 
-    useEffect(() => {
-        const initAuth = async () => {
-            const token = await getToken();
-            if (token) {
-                setAuthToken(token);
-                loadMembers();
-            } else {
-                setLoading(false);
-            }
-        };
-        initAuth();
-    }, [organizationId]);
-
-    const loadMembers = async () => {
+    const loadMembers = useCallback(async () => {
         try {
             const data = await getMembers(organizationId);
             setMembers(data);
@@ -74,7 +61,20 @@ export function MembersList({ organizationId, currentUserRole }: MembersListProp
         } finally {
             setLoading(false);
         }
-    };
+    }, [organizationId, toast]);
+
+    useEffect(() => {
+        const initAuth = async () => {
+            const token = await getToken();
+            if (token) {
+                setAuthToken(token);
+                loadMembers();
+            } else {
+                setLoading(false);
+            }
+        };
+        initAuth();
+    }, [getToken, loadMembers]);
 
     const handleRoleChange = async (userId: number, newRole: string) => {
         try {

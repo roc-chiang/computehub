@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Trophy, AlertCircle } from "lucide-react";
 import { comparePrices, type PriceComparison } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function PriceComparison({ gpuType, onRecommendedProviderChange }: PriceC
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchPrices = async () => {
+    const fetchPrices = useCallback(async () => {
         if (!gpuType) return;
 
         setLoading(true);
@@ -36,11 +36,11 @@ export function PriceComparison({ gpuType, onRecommendedProviderChange }: PriceC
         } finally {
             setLoading(false);
         }
-    };
+    }, [gpuType, onRecommendedProviderChange]);
 
     useEffect(() => {
         fetchPrices();
-    }, [gpuType]);
+    }, [fetchPrices]);
 
     if (loading && !comparison) {
         return (

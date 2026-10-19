@@ -10,10 +10,10 @@ import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from sqlmodel import Session, select
-from app.core.models import Deployment, DeploymentStatus
+from app.core.models import Deployment, DeploymentStatus, NotificationEventType, User
 from app.core.automation_models import (
-    AutomationRuleV2, RuleExecutionLog, RuleTriggerType, 
-    RuleActionType, RuleExecutionStatus, CostTracking, HealthCheckLog
+    AutomationRuleV2, RuleExecutionLog, RuleTriggerType,
+    RuleActionType, RuleExecutionStatus, CostTracking, HealthCheckLog, PriceHistory
 )
 from app.services.notification_service import NotificationService
 
@@ -30,7 +30,7 @@ class RuleEngine:
     """
     
     def __init__(self):
-        self.notification_service = None
+        pass
     
     async def process_all_rules(
         self, 
@@ -165,11 +165,11 @@ class RuleEngine:
             cost_records = session.exec(
                 select(CostTracking).where(
                     CostTracking.deployment_id == deployment.id,
-                    CostTracking.recorded_at >= start_time
+                    CostTracking.period_end >= start_time
                 )
             ).all()
             
-            total_cost = sum(record.cost_amount for record in cost_records)
+            total_cost = sum(record.cost_usd for record in cost_records)
             
             if total_cost >= threshold:
                 context["triggered_deployment"] = deployment
@@ -190,8 +190,36 @@ class RuleEngine:
         change_percentage = config.get("change_percentage", 10)  # %
         direction = config.get("direction", "increase")  # increase or decrease
         
-        # This would need PriceHistory integration
-        # For now, return False
+        if direction not in {"increase", "decrease", "either"} or change_percentage <= 0:
+            return False, context
+
+        for deployment in deployments:
+            if not deployment:
+                continue
+            records = session.exec(
+                select(PriceHistory)
+                .where(PriceHistory.deployment_id == deployment.id)
+                .order_by(PriceHistory.recorded_at.desc())
+                .limit(2)
+            ).all()
+            if len(records) < 2 or records[1].price_per_hour <= 0:
+                continue
+            percentage = ((records[0].price_per_hour - records[1].price_per_hour) / records[1].price_per_hour) * 100
+            matches = (
+                direction == "either" and abs(percentage) >= change_percentage
+            ) or (
+                direction == "increase" and percentage >= change_percentage
+            ) or (
+                direction == "decrease" and percentage <= -change_percentage
+            )
+            if matches:
+                context.update({
+                    "triggered_deployment": deployment,
+                    "price_change_percentage": percentage,
+                    "previous_price": records[1].price_per_hour,
+                    "current_price": records[0].price_per_hour,
+                })
+                return True, context
         return False, context
     
     async def _evaluate_health_check(
@@ -321,11 +349,13 @@ class RuleEngine:
         """Execute shutdown action"""
         try:
             from app.core.provider_manager import ProviderManager
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             
-            result = await adapter.stop_deployment(deployment.provider_deployment_id)
-            
-            if result.get("success"):
+            if not deployment.instance_id:
+                return {"success": False, "error": "Deployment has no provider instance"}
+            result = await adapter.stop_instance(deployment.instance_id)
+
+            if result:
                 deployment.status = DeploymentStatus.STOPPED
                 deployment.updated_at = datetime.utcnow()
                 session.add(deployment)
@@ -333,7 +363,7 @@ class RuleEngine:
                 
                 return {"success": True, "message": f"Deployment {deployment.id} shut down"}
             else:
-                return {"success": False, "error": result.get("error", "Shutdown failed")}
+                return {"success": False, "error": "Shutdown failed"}
                 
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -347,15 +377,17 @@ class RuleEngine:
         """Execute restart action"""
         try:
             from app.core.provider_manager import ProviderManager
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             
             # Stop then start
-            stop_result = await adapter.stop_deployment(deployment.provider_deployment_id)
-            if not stop_result.get("success"):
+            if not deployment.instance_id:
+                return {"success": False, "error": "Deployment has no provider instance"}
+            stop_result = await adapter.stop_instance(deployment.instance_id)
+            if not stop_result:
                 return {"success": False, "error": "Failed to stop deployment"}
             
-            start_result = await adapter.start_deployment(deployment.provider_deployment_id)
-            if start_result.get("success"):
+            start_result = await adapter.start_instance(deployment.instance_id)
+            if start_result:
                 deployment.status = DeploymentStatus.RUNNING
                 deployment.updated_at = datetime.utcnow()
                 session.add(deployment)
@@ -363,7 +395,7 @@ class RuleEngine:
                 
                 return {"success": True, "message": f"Deployment {deployment.id} restarted"}
             else:
-                return {"success": False, "error": start_result.get("error", "Restart failed")}
+                return {"success": False, "error": "Restart failed"}
                 
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -376,9 +408,10 @@ class RuleEngine:
         provider_adapters: Dict
     ) -> Dict:
         """Execute migrate action"""
-        # This would integrate with MigrationManager
-        # For now, return placeholder
-        return {"success": False, "error": "Migration not yet implemented in rule engine"}
+        return {
+            "success": False,
+            "error": "Migration is unavailable until data transfer and verification are implemented",
+        }
     
     async def _execute_notify(
         self,
@@ -389,8 +422,10 @@ class RuleEngine:
     ) -> Dict:
         """Execute notify action"""
         try:
-            if not self.notification_service:
-                self.notification_service = NotificationService(session)
+            notification_service = NotificationService(session)
+            owner = session.get(User, rule.user_id)
+            if not owner or not owner.clerk_id:
+                return {"success": False, "error": "Rule owner has no authentication account"}
             
             message = action_config.get("message", "Rule triggered")
             title = action_config.get("title", f"Rule: {rule.name}")
@@ -398,15 +433,21 @@ class RuleEngine:
             # Format message with context
             formatted_message = message.format(**context)
             
-            await self.notification_service.send_notification(
-                user_id=rule.user_id,
+            triggered_deployment = context.get("triggered_deployment")
+            results = await notification_service.send_notification(
+                user_id=owner.clerk_id,
+                event_type=NotificationEventType.PRICE_CHANGE,
                 title=title,
                 message=formatted_message,
-                notification_type="rule_trigger",
-                related_deployment_id=context.get("triggered_deployment", {}).get("id")
+                metadata={
+                    "rule_id": rule.id,
+                    "deployment_id": triggered_deployment.id if triggered_deployment else None,
+                },
             )
-            
-            return {"success": True, "message": "Notification sent"}
+
+            if any(results.values()):
+                return {"success": True, "message": "Notification sent"}
+            return {"success": False, "error": "No notification channel delivered the message"}
             
         except Exception as e:
             return {"success": False, "error": str(e)}

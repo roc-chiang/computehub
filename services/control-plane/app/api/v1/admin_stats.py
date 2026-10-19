@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, select, func
 from app.core.db import get_session
 from app.core.models import User, Deployment, DeploymentStatus, Provider
+from app.core.automation_models import CostTracking
 
 router = APIRouter()
 
@@ -49,14 +50,12 @@ async def get_platform_stats(session: Session = Depends(get_session)):
         }
     }
     
-    # Calculate usage statistics
-    total_gpu_hours = 0.0
-    for deployment in deployments:
-        if deployment.uptime_seconds:
-            total_gpu_hours += deployment.uptime_seconds / 3600.0
-    
-    # Calculate estimated cost ($0.50/hour average)
-    total_cost = total_gpu_hours * 0.50
+    total_gpu_hours, total_cost = session.exec(
+        select(
+            func.coalesce(func.sum(CostTracking.gpu_hours), 0.0),
+            func.coalesce(func.sum(CostTracking.cost_usd), 0.0),
+        )
+    ).one()
     
     usage_stats = {
         "total_gpu_hours": round(total_gpu_hours, 2),
@@ -70,10 +69,10 @@ async def get_platform_stats(session: Session = Depends(get_session)):
         "enabled": len([p for p in providers if p.is_enabled])
     }
     
-    # Revenue stats (placeholder for now)
     revenue_stats = {
-        "total": 0.0,  # TODO: Implement when Stripe integrated
-        "this_month": 0.0
+        "total": None,
+        "this_month": None,
+        "status": "unavailable"
     }
     
     return {

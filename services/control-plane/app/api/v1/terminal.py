@@ -7,9 +7,10 @@ POS: API layer for WebSSH terminal access
 """
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session
 from app.core.db import get_session
 from app.core.models import Deployment, User
+from app.core.auth import _get_or_create_user, verify_token
 from app.services.ssh_websocket_service import SSHWebSocketBridge, ssh_pool
 from app.core.encryption import get_encryption
 import json
@@ -24,45 +25,12 @@ async def get_current_user_ws(websocket: WebSocket, session: Session) -> User:
     For WebSocket, we need to extract token from query parameters
     since WebSocket doesn't support custom headers in browsers
     """
-    import os
-    
-    # Development mode: skip authentication
-    if os.getenv("ENVIRONMENT") == "development":
-        print("[DEBUG] Development mode: using test user for WebSocket")
-        test_user = session.exec(select(User).where(User.email == "dev@test.local")).first()
-        if test_user:
-            return test_user
-        # Create if not exists
-        test_user = User(
-            email="dev@test.local",
-            clerk_id="dev_user_local",
-            auth_provider="local",
-            plan="free"
-        )
-        session.add(test_user)
-        session.commit()
-        session.refresh(test_user)
-        return test_user
-    
-    # Production mode: get token from query params
-    # Frontend should connect with: ws://...?token=xxx
     token = websocket.query_params.get("token")
     if not token:
         raise HTTPException(status_code=401, detail="Missing authentication token")
     
-    # Verify token and get user (reuse existing auth logic)
-    from app.core.auth import verify_token
     payload = verify_token(token, session)
-    
-    clerk_id = payload.get("sub")
-    if not clerk_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    
-    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    return user
+    return _get_or_create_user(payload, session)
 
 
 @router.websocket("/deployments/{deployment_id}/terminal")
@@ -93,10 +61,10 @@ async def terminal_websocket(
         try:
             current_user = await get_current_user_ws(websocket, session)
             print(f"[WebSocket] Authenticated user: {current_user.email}")
-        except Exception as e:
+        except Exception:
             await websocket.send_json({
                 "type": "error",
-                "message": f"Authentication failed: {str(e)}"
+                "message": "Authentication failed"
             })
             await websocket.close()
             return
@@ -169,9 +137,13 @@ async def terminal_websocket(
         try:
             encryption = get_encryption()
             password = encryption.decrypt(password)
-        except Exception as e:
-            # If decryption fails, assume it's plain text (for backward compatibility)
-            print(f"[WebSocket] Password decryption failed, using as-is: {str(e)}")
+        except Exception:
+            await websocket.send_json({
+                "type": "error",
+                "message": "SSH credentials are unavailable; reconnect the provider account"
+            })
+            await websocket.close()
+            return
         
         # 7. Create SSH bridge
         bridge = SSHWebSocketBridge(websocket)

@@ -189,8 +189,7 @@ class PriceHistory(SQLModel, table=True):
     Price history tracking for deployments.
     Records GPU price changes over time for trend analysis and alerts.
     """
-    __tablename__ = "pricehistory"
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = "deploymentpricehistory"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     deployment_id: int = Field(foreign_key="deployment.id", index=True)

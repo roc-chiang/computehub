@@ -38,7 +38,9 @@ async def get_deployment_metrics(
         raise HTTPException(status_code=404, detail="Deployment not found")
     
     # Get provider adapter
-    adapter = ProviderManager.get_adapter(deployment.provider, session)
+    if not deployment.instance_id:
+        raise HTTPException(status_code=400, detail="Deployment has no provider instance")
+    adapter = ProviderManager.get_deployment_adapter(deployment, session)
     
     # Get metrics from adapter
     try:
@@ -48,15 +50,7 @@ async def get_deployment_metrics(
         metrics["timestamp"] = datetime.utcnow().isoformat()
         
         return metrics
-    except Exception as e:
-        # Return empty metrics on error
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "gpu_utilization": 0,
-            "gpu_memory_utilization": 0,
-            "cpu_utilization": 0,
-            "ram_utilization": 0,
-            "network_rx_bytes": 0,
-            "network_tx_bytes": 0,
-            "error": str(e)
-        }
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Provider metrics are unavailable") from exc

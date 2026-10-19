@@ -25,11 +25,11 @@ def migrate_add_is_pro_column():
             # PostgreSQL migration
             migrate_postgresql()
         else:
-            print(f"[MIGRATION] Unknown database type: {db_url}")
+            raise RuntimeError(f"Unsupported database type: {db_url}")
             
     except Exception as e:
         print(f"[MIGRATION ERROR] Failed to migrate: {e}")
-        # Don't raise - let the app try to start anyway
+        raise
         
 def migrate_sqlite():
     """Migrate SQLite database"""
@@ -112,10 +112,11 @@ def migrate_add_organization_project_columns():
         elif "postgresql" in db_url:
             migrate_deployment_postgresql()
         else:
-            print(f"[MIGRATION] Unknown database type: {db_url}")
+            raise RuntimeError(f"Unsupported database type: {db_url}")
             
     except Exception as e:
         print(f"[MIGRATION ERROR] Failed to migrate deployment table: {e}")
+        raise
 
 def migrate_deployment_sqlite():
     """Migrate deployment table for SQLite"""
@@ -146,6 +147,7 @@ def migrate_deployment_sqlite():
             print("[MIGRATION] ✅ Successfully added organization_id column")
         except Exception as e:
             print(f"[MIGRATION ERROR] Failed to add organization_id: {e}")
+            raise
     else:
         print("[MIGRATION] organization_id column already exists")
     
@@ -165,6 +167,7 @@ def migrate_deployment_sqlite():
             print("[MIGRATION] ✅ Successfully added project_id column")
         except Exception as e:
             print(f"[MIGRATION ERROR] Failed to add project_id: {e}")
+            raise
     else:
         print("[MIGRATION] project_id column already exists")
 
@@ -197,6 +200,7 @@ def migrate_deployment_postgresql():
             print("[MIGRATION] ✅ Successfully added organization_id column")
         except Exception as e:
             print(f"[MIGRATION ERROR] Failed to add organization_id: {e}")
+            raise
     else:
         print("[MIGRATION] organization_id column already exists")
     
@@ -216,12 +220,28 @@ def migrate_deployment_postgresql():
             print("[MIGRATION] ✅ Successfully added project_id column")
         except Exception as e:
             print(f"[MIGRATION ERROR] Failed to add project_id: {e}")
+            raise
     else:
         print("[MIGRATION] project_id column already exists")
+
+
+def migrate_account_and_ticket_columns():
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    with engine.begin() as conn:
+        if "user" in tables:
+            user_columns = {column["name"] for column in inspector.get_columns("user")}
+            if "is_active" not in user_columns:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE'))
+        if "supportticket" in tables:
+            ticket_columns = {column["name"] for column in inspector.get_columns("supportticket")}
+            if "user_last_read_at" not in ticket_columns:
+                conn.execute(text("ALTER TABLE supportticket ADD COLUMN user_last_read_at TIMESTAMP"))
 
 def run_migrations():
     """Run all pending migrations"""
     print("[MIGRATION] Running database migrations...")
     migrate_add_is_pro_column()
     migrate_add_organization_project_columns()
+    migrate_account_and_ticket_columns()
     print("[MIGRATION] Migrations complete")

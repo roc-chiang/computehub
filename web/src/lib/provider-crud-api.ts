@@ -1,5 +1,7 @@
 // Provider CRUD API Client
 
+import { getHeaders } from "./api";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export interface ProviderCreate {
@@ -33,13 +35,13 @@ export interface ProviderResponse {
 }
 
 export async function listProviders(): Promise<ProviderResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch providers');
     return response.json();
 }
 
 export async function getProvider(id: number): Promise<ProviderResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${id}`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${id}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch provider');
     return response.json();
 }
@@ -47,7 +49,7 @@ export async function getProvider(id: number): Promise<ProviderResponse> {
 export async function createProvider(data: ProviderCreate): Promise<ProviderResponse> {
     const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -60,7 +62,7 @@ export async function createProvider(data: ProviderCreate): Promise<ProviderResp
 export async function updateProvider(id: number, data: ProviderUpdate): Promise<ProviderResponse> {
     const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -73,6 +75,7 @@ export async function updateProvider(id: number, data: ProviderUpdate): Promise<
 export async function deleteProvider(id: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${id}`, {
         method: 'DELETE',
+        headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to delete provider');
 }

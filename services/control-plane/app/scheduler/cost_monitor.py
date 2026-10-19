@@ -35,7 +35,7 @@ class CostMonitor:
     ) -> Optional[CostTracking]:
         """
         Track cost for a deployment over the last hour.
-        
+
         Args:
             deployment: Deployment to track
             session: Database session
@@ -45,21 +45,28 @@ class CostMonitor:
         """
         if deployment.status != DeploymentStatus.RUNNING:
             return None
-        
-        # Calculate time period (last hour)
+
         period_end = datetime.utcnow()
-        period_start = period_end - timedelta(hours=1)
-        
+        latest_record = session.exec(
+            select(CostTracking)
+            .where(CostTracking.deployment_id == deployment.id)
+            .order_by(CostTracking.period_end.desc())
+        ).first()
+        period_start = latest_record.period_end if latest_record else deployment.created_at
+        if period_start >= period_end:
+            return None
+
         # Get GPU price from provider
         try:
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
-            pricing = await adapter.get_pricing(deployment.gpu_type)
-            price_per_hour = pricing.get("price_per_hour", 0.0)
-        except:
-            price_per_hour = 0.0
-        
-        # Calculate cost (1 hour of usage)
-        gpu_hours = 1.0
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
+            price_per_hour = await adapter.get_pricing(deployment.gpu_type)
+        except Exception as exc:
+            print(f"[CostMonitor] Pricing unavailable for deployment {deployment.id}: {exc}")
+            return None
+        if price_per_hour is None or price_per_hour < 0:
+            return None
+
+        gpu_hours = ((period_end - period_start).total_seconds() / 3600) * deployment.gpu_count
         cost_usd = gpu_hours * price_per_hour
         
         # Create cost tracking record
@@ -159,7 +166,7 @@ class CostMonitor:
         try:
             config = json.loads(rule.config_json)
             max_cost_usd = config.get("max_cost_usd", 0)
-        except:
+        except (TypeError, json.JSONDecodeError):
             return None
         
         # Get current month cost
@@ -191,10 +198,13 @@ class CostMonitor:
         
         try:
             # Get provider adapter
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             
-            # Stop instance
-            await adapter.stop_instance(deployment.instance_id)
+            if not deployment.instance_id:
+                raise ValueError("Deployment has no provider instance")
+            stopped = await adapter.stop_instance(deployment.instance_id)
+            if not stopped:
+                raise RuntimeError("Provider did not confirm deployment shutdown")
             
             # Update deployment status
             deployment.status = DeploymentStatus.STOPPED

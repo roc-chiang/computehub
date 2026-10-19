@@ -1,19 +1,20 @@
 """
-Input: BatchTask 配置, Database Session, Provider Adapters
-Output: 任务执行结果, 批量操作日志
-Pos: Phase 9 Week 2 任务队列核心,处理批量和定时任务
+Input: BatchTask 配置, Database Session, 用户 Provider 绑定
+Output: 按所有者凭据执行的批量任务结果
+Pos: 批量任务队列；计划迁移在数据传输和校验完成前禁用
 
 一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
 
-import asyncio
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 from sqlmodel import Session, select
 
-from app.core.models import Deployment, DeploymentStatus
+from app.core.models import Deployment, DeploymentStatus, ProviderType, User
 from app.core.automation_models import BatchTask, TaskStatus, TaskType
+from app.core.config import settings
+from app.core.provider_manager import ProviderManager
 from app.adapters.base import ProviderAdapter
 
 
@@ -164,7 +165,9 @@ class TaskQueueManager:
             return await self._execute_batch_delete(task, config, session, provider_adapters)
         
         elif task.task_type == TaskType.SCHEDULED_MIGRATION.value:
-            return await self._execute_scheduled_migration(task, config, session, provider_adapters)
+            raise RuntimeError(
+                "Scheduled migration is unavailable until data transfer and verification are implemented"
+            )
         
         else:
             raise Exception(f"Unknown task type: {task.task_type}")
@@ -181,17 +184,21 @@ class TaskQueueManager:
         
         created_deployments = []
         failed_deployments = []
+
+        owner = session.get(User, task.user_id)
+        if not owner:
+            raise RuntimeError("Task owner not found")
         
         for deploy_config in deployments_config:
             try:
-                provider = deploy_config["provider"]
+                provider = ProviderType(deploy_config["provider"])
+                if settings.ENVIRONMENT == "production" and provider == ProviderType.LOCAL:
+                    raise ValueError("Local provider is unavailable in production")
                 gpu_type = deploy_config["gpu_type"]
                 image = deploy_config.get("image", "ubuntu:22.04")
                 name = deploy_config.get("name", f"batch-{task.id}")
                 
-                adapter = provider_adapters.get(provider)
-                if not adapter:
-                    raise Exception(f"No adapter for provider: {provider}")
+                adapter = ProviderManager.get_user_adapter(owner, provider, session)
                 
                 # Create instance
                 create_result = await adapter.create_instance(
@@ -256,13 +263,16 @@ class TaskQueueManager:
                     failed_count += 1
                     continue
                 
-                adapter = provider_adapters.get(deployment.provider)
-                if not adapter:
+                if not deployment.instance_id:
                     failed_count += 1
                     continue
+
+                adapter = ProviderManager.get_deployment_adapter(deployment, session)
                 
                 # Stop instance
-                await adapter.stop_instance(deployment.instance_id)
+                if not await adapter.stop_instance(deployment.instance_id):
+                    failed_count += 1
+                    continue
                 deployment.status = DeploymentStatus.STOPPED
                 session.add(deployment)
                 session.commit()
@@ -303,13 +313,16 @@ class TaskQueueManager:
                     failed_count += 1
                     continue
                 
-                adapter = provider_adapters.get(deployment.provider)
-                if not adapter:
+                if not deployment.instance_id:
                     failed_count += 1
                     continue
+
+                adapter = ProviderManager.get_deployment_adapter(deployment, session)
                 
                 # Delete instance
-                await adapter.delete_instance(deployment.instance_id)
+                if not await adapter.delete_instance(deployment.instance_id):
+                    failed_count += 1
+                    continue
                 session.delete(deployment)
                 session.commit()
                 
@@ -322,44 +335,6 @@ class TaskQueueManager:
         return {
             "deleted_count": deleted_count,
             "failed_count": failed_count
-        }
-    
-    async def _execute_scheduled_migration(
-        self,
-        task: BatchTask,
-        config: Dict,
-        session: Session,
-        provider_adapters: Dict[str, ProviderAdapter]
-    ) -> Dict:
-        """Execute scheduled migration."""
-        from app.scheduler.auto_migration import MigrationManager
-        
-        deployment_id = config.get("deployment_id")
-        target_provider = config.get("target_provider")
-        target_config = config.get("target_config", {})
-        
-        deployment = session.get(Deployment, deployment_id)
-        if not deployment:
-            raise Exception(f"Deployment {deployment_id} not found")
-        
-        # Check user permission
-        if deployment.user_id != task.user_id:
-            raise Exception("Permission denied")
-        
-        # Execute migration
-        migration_manager = MigrationManager()
-        migration_task = await migration_manager.migrate_deployment(
-            source_deployment=deployment,
-            target_provider=target_provider,
-            target_config=target_config,
-            user_id=task.user_id,
-            session=session,
-            provider_adapters=provider_adapters
-        )
-        
-        return {
-            "migration_task_id": migration_task.id,
-            "status": migration_task.status
         }
     
     async def cancel_task(

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Settings, Trash2, Edit } from "lucide-react";
-import { getHeaders } from "@/lib/api";
+import { API_BASE_URL, getHeaders } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { CreateRuleDialog } from "@/components/deploy/create-rule-dialog";
 
@@ -27,13 +27,9 @@ export default function AutomationSettingsPage() {
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const { toast } = useToast();
 
-    useEffect(() => {
-        fetchRules();
-    }, []);
-
-    const fetchRules = async () => {
+    const fetchRules = useCallback(async () => {
         try {
-            const response = await fetch("/api/v1/automation/rules", {
+            const response = await fetch(`${API_BASE_URL}/automation/rules`, {
                 headers: getHeaders(),
             });
 
@@ -51,11 +47,15 @@ export default function AutomationSettingsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
+
+    useEffect(() => {
+        fetchRules();
+    }, [fetchRules]);
 
     const toggleRule = async (ruleId: number) => {
         try {
-            const response = await fetch(`/api/v1/automation/rules/${ruleId}/toggle`, {
+            const response = await fetch(`${API_BASE_URL}/automation/rules/${ruleId}/toggle`, {
                 method: "POST",
                 headers: getHeaders(),
             });
@@ -81,7 +81,7 @@ export default function AutomationSettingsPage() {
         if (!confirm("Are you sure you want to delete this rule?")) return;
 
         try {
-            const response = await fetch(`/api/v1/automation/rules/${ruleId}`, {
+            const response = await fetch(`${API_BASE_URL}/automation/rules/${ruleId}`, {
                 method: "DELETE",
                 headers: getHeaders(),
             });

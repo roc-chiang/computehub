@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ export default function NotificationHistoryPage() {
     const { getToken, isLoaded, isSignedIn } = useAuth();
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<NotificationHistoryItem[]>([]);
-    const [filteredNotifications, setFilteredNotifications] = useState<NotificationHistoryItem[]>([]);
     const [total, setTotal] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,17 +28,7 @@ export default function NotificationHistoryPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
-    useEffect(() => {
-        if (isLoaded && isSignedIn) {
-            fetchHistory();
-        }
-    }, [isLoaded, isSignedIn, currentPage]);
-
-    useEffect(() => {
-        applyFilters();
-    }, [notifications, channelFilter, statusFilter, searchQuery]);
-
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -62,9 +51,15 @@ export default function NotificationHistoryPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage, getToken]);
 
-    const applyFilters = () => {
+    useEffect(() => {
+        if (isLoaded && isSignedIn) {
+            fetchHistory();
+        }
+    }, [fetchHistory, isLoaded, isSignedIn]);
+
+    const filteredNotifications = useMemo(() => {
         let filtered = [...notifications];
 
         // Channel filter
@@ -86,8 +81,8 @@ export default function NotificationHistoryPage() {
             );
         }
 
-        setFilteredNotifications(filtered);
-    };
+        return filtered;
+    }, [channelFilter, notifications, searchQuery, statusFilter]);
 
     const getChannelIcon = (channel: string) => {
         switch (channel.toLowerCase()) {

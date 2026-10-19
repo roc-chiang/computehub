@@ -65,7 +65,7 @@ export function PriceComparisonDrawer({
         if (gpuType) {
             fetchPrices();
         }
-    }, [gpuType]);
+    }, [gpuType, onProviderSelect, selectedProvider]);
 
     if (loading) {
         return (

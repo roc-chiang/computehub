@@ -9,6 +9,7 @@ from app.core.models import (
     SupportTicket, TicketReply, User,
     TicketStatus, TicketPriority, TicketCategory
 )
+from app.core.auth import get_current_user
 
 router = APIRouter()
 
@@ -66,14 +67,10 @@ class ReplyRequest(BaseModel):
 @router.post("/", response_model=TicketDetail)
 async def create_ticket(
     ticket_data: CreateTicketRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """Create a new support ticket."""
-    # TODO: Get user from auth
-    # For now, use a test user
-    user = session.exec(select(User).limit(1)).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="User not found")
     
     # Create ticket
     ticket = SupportTicket(
@@ -82,7 +79,8 @@ async def create_ticket(
         subject=ticket_data.subject,
         category=ticket_data.category,
         priority=ticket_data.priority,
-        status=TicketStatus.OPEN
+        status=TicketStatus.OPEN,
+        user_last_read_at=datetime.utcnow(),
     )
     
     session.add(ticket)
@@ -128,13 +126,10 @@ async def list_my_tickets(
     status: Optional[TicketStatus] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """List current user's tickets."""
-    # TODO: Get user from auth
-    user = session.exec(select(User).limit(1)).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="User not found")
     
     query = select(SupportTicket).where(SupportTicket.user_id == user.id)
     
@@ -149,9 +144,14 @@ async def list_my_tickets(
     # Get reply counts
     result = []
     for ticket in tickets:
-        reply_count = len(session.exec(
+        replies = session.exec(
             select(TicketReply).where(TicketReply.ticket_id == ticket.id)
-        ).all())
+        ).all()
+        has_unread = any(
+            reply.is_admin
+            and (ticket.user_last_read_at is None or reply.created_at > ticket.user_last_read_at)
+            for reply in replies
+        )
         
         result.append(TicketListItem(
             id=ticket.id,
@@ -161,8 +161,8 @@ async def list_my_tickets(
             status=ticket.status,
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,
-            reply_count=reply_count,
-            has_unread=False  # TODO: Implement unread tracking
+            reply_count=len(replies),
+            has_unread=has_unread,
         ))
     
     return result
@@ -170,13 +170,10 @@ async def list_my_tickets(
 @router.get("/{ticket_id}", response_model=TicketDetail)
 async def get_my_ticket(
     ticket_id: int,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """Get detailed ticket information."""
-    # TODO: Get user from auth
-    user = session.exec(select(User).limit(1)).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="User not found")
     
     ticket = session.get(SupportTicket, ticket_id)
     if not ticket:
@@ -184,7 +181,7 @@ async def get_my_ticket(
     
     # Verify ownership
     if ticket.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(status_code=404, detail="Ticket not found")
     
     # Get all replies
     replies = session.exec(
@@ -192,6 +189,9 @@ async def get_my_ticket(
         .where(TicketReply.ticket_id == ticket_id)
         .order_by(TicketReply.created_at.asc())
     ).all()
+    ticket.user_last_read_at = datetime.utcnow()
+    session.add(ticket)
+    session.commit()
     
     return TicketDetail(
         id=ticket.id,
@@ -218,13 +218,10 @@ async def get_my_ticket(
 async def reply_to_my_ticket(
     ticket_id: int,
     reply: ReplyRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """Reply to own ticket."""
-    # TODO: Get user from auth
-    user = session.exec(select(User).limit(1)).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="User not found")
     
     ticket = session.get(SupportTicket, ticket_id)
     if not ticket:
@@ -232,7 +229,7 @@ async def reply_to_my_ticket(
     
     # Verify ownership
     if ticket.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(status_code=404, detail="Ticket not found")
     
     # Create reply
     ticket_reply = TicketReply(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { ArrowLeft, Server } from "lucide-react";
@@ -18,6 +18,17 @@ export default function ProjectPage() {
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const loadProject = useCallback(async () => {
+        try {
+            const data = await getProject(projectId);
+            setProject(data);
+        } catch (error) {
+            console.error("Failed to load project:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [projectId]);
+
     useEffect(() => {
         const initAuth = async () => {
             const token = await getToken();
@@ -29,18 +40,7 @@ export default function ProjectPage() {
             }
         };
         initAuth();
-    }, [projectId, getToken]);
-
-    const loadProject = async () => {
-        try {
-            const data = await getProject(projectId);
-            setProject(data);
-        } catch (error) {
-            console.error("Failed to load project:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [getToken, loadProject]);
 
     if (loading) {
         return (

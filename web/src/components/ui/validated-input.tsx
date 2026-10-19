@@ -34,7 +34,7 @@ export function ValidatedInput({
                     className,
                     showError && "border-destructive focus-visible:ring-destructive"
                 )}
-                aria-invalid={showError}
+                aria-invalid={showError ? true : undefined}
                 aria-describedby={showError ? `${props.id}-error` : undefined}
             />
             {showError ? (

@@ -1,7 +1,7 @@
 """
-Input: APScheduler 调度器, Database Session, Provider Adapters, 高级自动化 Scheduler 模块
-Output: 定时执行的高级自动化任务(价格监控1h, 迁移检查6h, Failover检查5min, 任务队列1min)
-Pos: Phase 9 Week 2 高级自动化的任务调度器,在 app.main 启动时初始化,协调所有高级自动化功能
+Input: APScheduler 调度器, Database Session, 高级自动化 Scheduler 模块
+Output: 定时执行的价格监控和批量任务队列
+Pos: 高级自动化任务调度器；迁移和故障转移在安全实现完成前不注册
 
 一旦我被更新,务必更新我的开头注释,以及所属的文件夹的 README.md
 """
@@ -12,15 +12,11 @@ from datetime import datetime
 
 from app.core.db import get_session
 from app.scheduler.price_monitor import PriceMonitor
-from app.scheduler.auto_migration import MigrationManager
-from app.scheduler.failover_manager import FailoverManager
 from app.scheduler.task_queue import TaskQueueManager
 
 
 # Module instances
 price_monitor = PriceMonitor()
-migration_manager = MigrationManager()
-failover_manager = FailoverManager()
 task_queue_manager = TaskQueueManager()
 
 
@@ -32,58 +28,13 @@ async def price_monitoring_task():
     print(f"[AdvancedTask] Running price monitoring at {datetime.utcnow()}")
     
     try:
-        from app.main import get_provider_adapters
-        provider_adapters = get_provider_adapters()
-        
         with next(get_session()) as session:
             price_records = await price_monitor.track_deployment_prices(
-                session, provider_adapters
+                session, {}
             )
             print(f"[AdvancedTask] Price monitoring completed: {len(price_records)} price changes recorded")
     except Exception as e:
         print(f"[AdvancedTask] Price monitoring failed: {e}")
-
-
-async def migration_check_task():
-    """
-    Migration check task - runs every 6 hours.
-    Checks if any deployments should trigger auto-migration based on price rules.
-    """
-    print(f"[AdvancedTask] Running migration check at {datetime.utcnow()}")
-    
-    try:
-        from app.main import get_provider_adapters
-        provider_adapters = get_provider_adapters()
-        
-        with next(get_session()) as session:
-            migration_tasks = await migration_manager.check_migration_triggers(
-                session, provider_adapters
-            )
-            if migration_tasks:
-                print(f"[AdvancedTask] Migration check completed: {len(migration_tasks)} migrations triggered")
-    except Exception as e:
-        print(f"[AdvancedTask] Migration check failed: {e}")
-
-
-async def failover_check_task():
-    """
-    Failover check task - runs every 5 minutes.
-    Monitors provider health and triggers failover if needed.
-    """
-    print(f"[AdvancedTask] Running failover check at {datetime.utcnow()}")
-    
-    try:
-        from app.main import get_provider_adapters
-        provider_adapters = get_provider_adapters()
-        
-        with next(get_session()) as session:
-            logs = await failover_manager.process_failover_checks(
-                session, provider_adapters
-            )
-            if logs:
-                print(f"[AdvancedTask] Failover check completed: {len(logs)} failovers triggered")
-    except Exception as e:
-        print(f"[AdvancedTask] Failover check failed: {e}")
 
 
 async def task_queue_processor():
@@ -94,13 +45,9 @@ async def task_queue_processor():
     print(f"[AdvancedTask] Running task queue processor at {datetime.utcnow()}")
     
     try:
-        # Get provider adapters
-        from app.main import get_provider_adapters
-        provider_adapters = get_provider_adapters()
-        
         with next(get_session()) as session:
             processed_tasks = await task_queue_manager.process_task_queue(
-                session, provider_adapters
+                session, {}
             )
             if processed_tasks:
                 print(f"[AdvancedTask] Processed {processed_tasks} tasks")
@@ -126,24 +73,6 @@ def register_advanced_automation_tasks(scheduler):
         trigger=IntervalTrigger(hours=1),
         id="price_monitoring",
         name="Price Monitoring Task",
-        replace_existing=True
-    )
-    
-    # Migration check every 6 hours
-    scheduler.add_job(
-        migration_check_task,
-        trigger=IntervalTrigger(hours=6),
-        id="migration_check",
-        name="Migration Check Task",
-        replace_existing=True
-    )
-    
-    # Failover check every 5 minutes
-    scheduler.add_job(
-        failover_check_task,
-        trigger=IntervalTrigger(minutes=5),
-        id="failover_check",
-        name="Failover Check Task",
         replace_existing=True
     )
     

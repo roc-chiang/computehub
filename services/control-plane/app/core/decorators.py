@@ -3,9 +3,8 @@ Decorators for protecting Pro features and other common functionality.
 """
 
 from functools import wraps
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 from sqlmodel import Session
-from app.core.db import get_session
 from app.services.license_checker import LicenseChecker
 
 
@@ -23,16 +22,12 @@ def require_pro_license(func):
         HTTPException: 403 if Pro License is not activated
     """
     @wraps(func)
-    async def wrapper(*args, db: Session = Depends(get_session), **kwargs):
-        # Get database session from kwargs or args
-        if 'db' not in kwargs:
-            # Try to find db in args (usually first positional arg after self)
-            for arg in args:
-                if isinstance(arg, Session):
-                    db = arg
-                    break
-        
+    async def wrapper(*args, **kwargs):
+        db = kwargs.get("session") or kwargs.get("db")
         if db is None:
+            db = next((arg for arg in args if isinstance(arg, Session)), None)
+
+        if not isinstance(db, Session):
             raise HTTPException(
                 status_code=500,
                 detail="Database session not available"
@@ -51,6 +46,6 @@ def require_pro_license(func):
                 }
             )
         
-        return await func(*args, db=db, **kwargs)
+        return await func(*args, **kwargs)
     
     return wrapper

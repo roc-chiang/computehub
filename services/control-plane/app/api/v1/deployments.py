@@ -7,66 +7,29 @@ from app.core.models import Deployment, User, DeploymentStatus, ActivityLog, Not
 from app.schemas.deployment import DeploymentCreate, DeploymentRead
 from app.core.provider_manager import ProviderManager
 from app.services.notification_service import get_notification_service
+from app.core.config import settings
+from app.core.automation_models import CostTracking
 
 router = APIRouter()
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.core.auth import verify_token
+from app.core.auth import get_current_user
 
-security = HTTPBearer()
+def get_owned_deployment(deployment_id: int, current_user: User, session: Session) -> Deployment:
+    deployment = session.get(Deployment, deployment_id)
+    if not deployment or deployment.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
-) -> User:
-    print(f"[DEBUG] get_current_user called")
+
+def get_deployment_ssh_password(deployment: Deployment) -> str:
+    if not deployment.ssh_password:
+        raise HTTPException(status_code=400, detail="SSH credentials are not available")
+    from app.core.encryption import get_encryption
     try:
-        token = credentials.credentials
-        print(f"[DEBUG] Token received: {token[:20]}...")
-        payload = verify_token(token, session)
-        print(f"[DEBUG] Token verified, payload: {payload}")
-        
-        clerk_id = payload.get("sub")
-        if not clerk_id:
-            print("[ERROR] Invalid token: missing sub")
-            raise HTTPException(status_code=401, detail="Invalid token: missing sub")
-            
-        # Lazy User Creation / Sync
-        user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
-        
-        if not user:
-            email = payload.get("email")
-            if not email:
-                email = f"{clerk_id}@clerk.user" 
-                
-            existing_email_user = session.exec(select(User).where(User.email == email)).first()
-            if existing_email_user:
-                existing_email_user.clerk_id = clerk_id
-                existing_email_user.auth_provider = "clerk"
-                session.add(existing_email_user)
-                session.commit()
-                session.refresh(existing_email_user)
-                print(f"[DEBUG] Updated existing user: {existing_email_user.email}")
-                return existing_email_user
-            
-            user = User(
-                email=email,
-                clerk_id=clerk_id,
-                auth_provider="clerk",
-                plan="free"
-            )
-            session.add(user)
-            session.commit()
-            session.refresh(user)
-            print(f"[DEBUG] Created new user: {user.email}")
-        
-        print(f"[DEBUG] Returning user: {user.email}, id: {user.id}")
-        return user
-    except Exception as e:
-        print(f"[ERROR] get_current_user failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise
+        return get_encryption().decrypt(deployment.ssh_password)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="SSH credentials must be refreshed") from exc
+
 
 @router.post("/", response_model=DeploymentRead)
 async def create_deployment(
@@ -74,6 +37,8 @@ async def create_deployment(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    if settings.ENVIRONMENT == "production" and str(deployment_in.provider).lower() in {"local", "providertype.local"}:
+        raise HTTPException(status_code=400, detail="Local mock deployments are disabled in production")
     concrete_provider = ProviderManager.resolve_provider(deployment_in.provider, session)
 
     # Check if user has a provider binding for this provider
@@ -128,6 +93,22 @@ async def create_deployment(
         # Auto-set organization_id from project if not provided
         if not deployment_in.organization_id:
             deployment_in.organization_id = project.organization_id
+
+    if deployment_in.organization_id:
+        from app.core.team_models import OrganizationMember, OrganizationRole
+        membership = session.exec(
+            select(OrganizationMember).where(
+                OrganizationMember.organization_id == deployment_in.organization_id,
+                OrganizationMember.user_id == current_user.id,
+            )
+        ).first()
+        allowed_roles = {
+            OrganizationRole.OWNER.value,
+            OrganizationRole.ADMIN.value,
+            OrganizationRole.MEMBER.value,
+        }
+        if not membership or membership.role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Insufficient organization permissions")
     
     deployment = Deployment(
         user_id=current_user.id,
@@ -245,10 +226,11 @@ async def list_deployments(
         deployment = data["deployment"]
         org_name = data["organization_name"]
         proj_name = data["project_name"]
+        sync_error = None
         
         if deployment.status in [DeploymentStatus.CREATING, DeploymentStatus.RUNNING] and deployment.instance_id:
             try:
-                adapter = ProviderManager.get_adapter(deployment.provider, session)
+                adapter = ProviderManager.get_deployment_adapter(deployment, session)
                 print(f"[DEBUG] Syncing status for deployment {deployment.id}, instance {deployment.instance_id}")
                 status_info = await adapter.get_status(deployment.instance_id)
                 print(f"[DEBUG] Got status: {status_info}")
@@ -291,7 +273,7 @@ async def list_deployments(
                     session.refresh(deployment)
             except Exception as e:
                 print(f"[ERROR] Failed to sync status: {str(e)}")
-                pass
+                sync_error = "Provider status is temporarily unavailable; cached values are shown"
         
         # Convert deployment to dict and add organization/project names
         deployment_dict = {
@@ -304,7 +286,6 @@ async def list_deployments(
             "gpu_count": deployment.gpu_count,
             "endpoint_url": deployment.endpoint_url,
             "ssh_connection_string": deployment.ssh_connection_string,
-            "ssh_password": deployment.ssh_password,
             "instance_id": deployment.instance_id,
             "image": deployment.image,
             "template_type": deployment.template_type,
@@ -319,6 +300,7 @@ async def list_deployments(
             "project_id": deployment.project_id,
             "organization_name": org_name,
             "project_name": proj_name,
+            "sync_error": sync_error,
             "created_at": deployment.created_at,
             "updated_at": deployment.updated_at
         }
@@ -332,13 +314,11 @@ async def get_deployment(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
     if deployment.status not in [DeploymentStatus.DELETED, DeploymentStatus.ERROR] and deployment.instance_id:
         try:
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             status_info = await adapter.get_status(deployment.instance_id)
             
             new_status = status_info.get("status")
@@ -375,8 +355,11 @@ async def get_deployment(
                 session.add(deployment)
                 session.commit()
                 session.refresh(deployment)
-        except Exception:
-            pass
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="Provider status is unavailable; deployment state was not refreshed",
+            ) from exc
 
     return deployment
 
@@ -386,18 +369,20 @@ async def delete_deployment(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
     deployment_name = deployment.name
 
     if deployment.instance_id:
         try:
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
-            await adapter.delete_instance(deployment.instance_id)
-        except Exception:
-            pass
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
+            deleted = await adapter.delete_instance(deployment.instance_id)
+            if not deleted:
+                raise HTTPException(status_code=502, detail="Provider did not delete the instance")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Provider deletion failed") from exc
 
     deployment.status = DeploymentStatus.DELETED
     session.add(deployment)
@@ -424,9 +409,7 @@ async def get_deployment_activity(
     current_user: User = Depends(get_current_user)
 ):
     """获取部署实例的操作日志"""
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
     statement = select(ActivityLog).where(ActivityLog.deployment_id == deployment_id).order_by(ActivityLog.created_at.desc()).limit(50)
     results = session.exec(statement)
@@ -441,9 +424,7 @@ async def get_deployment_logs(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
     if not deployment.ssh_connection_string:
         return {"logs": "SSH connection string not available. Is the instance running?"}
@@ -458,7 +439,7 @@ async def get_deployment_logs(
             host=host,
             port=port,
             username=username,
-            password=deployment.ssh_password,
+            password=get_deployment_ssh_password(deployment),
             lines=lines
         )
         
@@ -473,35 +454,19 @@ async def get_deployment_usage_stats(
     current_user: User = Depends(get_current_user)
 ):
     """获取部署实例的使用统计和成本估算"""
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
-    # Calculate GPU hours from uptime
+    usage_records = session.exec(
+        select(CostTracking).where(CostTracking.deployment_id == deployment.id)
+    ).all()
+
     uptime_seconds = deployment.uptime_seconds or 0
     gpu_hours = uptime_seconds / 3600.0
-    total_gpu_hours = gpu_hours * deployment.gpu_count
-    
-    # Cost estimation (example rates, should be configurable)
-    # Different GPU types have different costs
-    cost_per_gpu_hour = 0.50  # Default rate
-    
-    # You could add GPU-specific pricing here
-    gpu_pricing = {
-        "RTX 4090": 0.69,
-        "A100": 1.89,
-        "H100": 3.99,
-        "RTX 3090": 0.49,
-    }
-    
-    # Try to match GPU type
-    for gpu_name, price in gpu_pricing.items():
-        if gpu_name.lower() in deployment.gpu_type.lower():
-            cost_per_gpu_hour = price
-            break
-    
-    estimated_cost = total_gpu_hours * cost_per_gpu_hour
-    cost_per_hour = deployment.gpu_count * cost_per_gpu_hour
+    total_gpu_hours = sum(record.gpu_hours for record in usage_records)
+    recorded_cost = sum(record.cost_usd for record in usage_records)
+    latest_record = max(usage_records, key=lambda record: record.period_end) if usage_records else None
+    cost_per_gpu_hour = latest_record.price_per_hour if latest_record else None
+    cost_per_hour = cost_per_gpu_hour * deployment.gpu_count if cost_per_gpu_hour is not None else None
     
     return {
         "uptime_seconds": uptime_seconds,
@@ -510,8 +475,8 @@ async def get_deployment_usage_stats(
         "gpu_type": deployment.gpu_type,
         "total_gpu_hours": round(total_gpu_hours, 2),
         "cost_per_gpu_hour": cost_per_gpu_hour,
-        "cost_per_hour": round(cost_per_hour, 2),
-        "estimated_cost_usd": round(estimated_cost, 2),
+        "cost_per_hour": round(cost_per_hour, 2) if cost_per_hour is not None else None,
+        "recorded_cost_usd": round(recorded_cost, 2),
         "status": deployment.status
     }
 
@@ -523,9 +488,7 @@ async def get_deployment_files(
     current_user: User = Depends(get_current_user)
 ):
     """获取部署实例的文件列表"""
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
     if not deployment.ssh_connection_string:
         raise HTTPException(status_code=400, detail="SSH connection not available")
@@ -541,7 +504,7 @@ async def get_deployment_files(
             port=port,
             username=username,
             path=path,
-            password=deployment.ssh_password
+            password=get_deployment_ssh_password(deployment)
         )
         return files
     except Exception as e:
@@ -555,9 +518,7 @@ async def get_deployment_file_content(
     current_user: User = Depends(get_current_user)
 ):
     """获取部署实例的文件内容"""
-    deployment = session.get(Deployment, deployment_id)
-    if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+    deployment = get_owned_deployment(deployment_id, current_user, session)
     
     if not deployment.ssh_connection_string:
         raise HTTPException(status_code=400, detail="SSH connection not available")
@@ -573,7 +534,7 @@ async def get_deployment_file_content(
             port=port,
             username=username,
             path=path,
-            password=deployment.ssh_password
+            password=get_deployment_ssh_password(deployment)
         )
         return {"content": content}
     except Exception as e:

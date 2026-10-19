@@ -25,8 +25,9 @@ export interface OrganizationWithStats extends Organization {
 
 export interface OrganizationMember {
     id: number;
+    organization_id?: number;
     user_id: number;
-    email: string;
+    email?: string;
     role: string;
     joined_at: string;
 }

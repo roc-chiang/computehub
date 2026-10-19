@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional, Dict
 from sqlmodel import Session, select
 from app.core.models import SystemSetting
+from app.core.encryption import decrypt_value, encrypt_value
 
 
 class LicenseChecker:
@@ -65,36 +66,26 @@ class LicenseChecker:
         if not self.validate_format(license_key):
             raise ValueError("Invalid license key format. Expected: COMPUTEHUB-XXXX-XXXX-XXXX-XXXX")
         
-        # Step 2: Remote verification (if configured)
+        # Step 2: Remote verification
         import os
         license_server_url = os.getenv("LICENSE_SERVER_URL")
-        
-        if license_server_url:
-            try:
-                import httpx
-                import asyncio
-                
-                async def verify_remote():
-                    async with httpx.AsyncClient(timeout=10.0) as client:
-                        response = await client.post(
-                            f"{license_server_url}/api/verify",
-                            json={"license_key": license_key}
-                        )
-                        return response.json()
-                
-                # Run async verification
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                result = loop.run_until_complete(verify_remote())
-                loop.close()
-                
-                if not result.get("valid"):
-                    raise ValueError(result.get("message", "License verification failed"))
-                    
-            except Exception as e:
-                # Log warning but don't fail activation if server is unreachable
-                print(f"[WARNING] Remote license verification failed: {str(e)}")
-                print("[WARNING] Proceeding with local activation only")
+        if not license_server_url:
+            raise ValueError("License verification service is not configured")
+
+        try:
+            import requests
+            response = requests.post(
+                f"{license_server_url.rstrip('/')}/api/verify",
+                json={"license_key": license_key},
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+        except Exception as exc:
+            raise ValueError("License verification service is unavailable") from exc
+
+        if not result.get("valid"):
+            raise ValueError(result.get("message", "License verification failed"))
         
         # Step 3: Save to local database
         encrypted_key = self._encrypt_license_key(license_key)
@@ -170,7 +161,7 @@ class LicenseChecker:
         
         return {
             "is_pro_enabled": True,
-            "license_key": self._mask_license_key(license_setting.value),
+            "license_key": self._mask_license_key(self._decrypt_license_key(license_setting.value)),
             "activated_at": activated_at_setting.value if activated_at_setting else None,
             "message": "Pro License is active"
         }
@@ -188,7 +179,12 @@ class LicenseChecker:
             select(SystemSetting).where(SystemSetting.key == self.LICENSE_KEY_SETTING)
         ).first()
         
-        return license_setting is not None
+        if not license_setting or not license_setting.value:
+            return False
+        try:
+            return self.validate_format(self._decrypt_license_key(license_setting.value))
+        except Exception:
+            return False
     
     def deactivate_license(self) -> bool:
         """
@@ -251,23 +247,7 @@ class LicenseChecker:
         Returns:
             Encrypted license key (base64 encoded)
         """
-        from cryptography.fernet import Fernet
-        import os
-        
-        # Get encryption key from environment
-        encryption_key = os.getenv("ENCRYPTION_KEY")
-        if not encryption_key:
-            # Fallback: store unencrypted (not recommended for production)
-            print("[WARNING] ENCRYPTION_KEY not set, storing license key unencrypted")
-            return license_key
-        
-        try:
-            fernet = Fernet(encryption_key.encode())
-            encrypted = fernet.encrypt(license_key.encode())
-            return encrypted.decode()
-        except Exception as e:
-            print(f"[ERROR] Failed to encrypt license key: {str(e)}")
-            return license_key
+        return encrypt_value(license_key)
     
     def _decrypt_license_key(self, encrypted_key: str) -> str:
         """
@@ -279,19 +259,4 @@ class LicenseChecker:
         Returns:
             Decrypted license key
         """
-        from cryptography.fernet import Fernet
-        import os
-        
-        encryption_key = os.getenv("ENCRYPTION_KEY")
-        if not encryption_key:
-            # Assume it's unencrypted
-            return encrypted_key
-        
-        try:
-            fernet = Fernet(encryption_key.encode())
-            decrypted = fernet.decrypt(encrypted_key.encode())
-            return decrypted.decode()
-        except Exception as e:
-            # If decryption fails, assume it's already decrypted
-            print(f"[WARNING] Failed to decrypt license key, using as-is: {str(e)}")
-            return encrypted_key
+        return decrypt_value(encrypted_key)

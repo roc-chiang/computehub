@@ -31,13 +31,13 @@ const providers: Provider[] = [
         icon: <Cloud className="h-6 w-6 text-blue-400" />,
         badge: "Beta"
     },
-    {
+    ...(process.env.NEXT_PUBLIC_ENABLE_LOCAL_PROVIDER === "true" ? [{
         id: "local",
         name: "Local (Mock)",
         description: "Dev/Test environment",
         icon: <Laptop className="h-6 w-6" />,
         badge: "Dev"
-    }
+    } as Provider] : [])
 ];
 
 interface ProviderSelectorProps {

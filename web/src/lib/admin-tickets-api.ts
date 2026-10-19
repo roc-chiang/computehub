@@ -81,11 +81,11 @@ export interface ReplyRequest {
     message: string;
 }
 
-import { API_BASE_URL } from "./api";
+import { API_BASE_URL, getHeaders } from "./api";
 
 // Admin API Functions
 export async function getTicketStats(): Promise<TicketStats> {
-    const response = await fetch(`${API_BASE_URL}/admin/tickets/stats`);
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/stats`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch ticket stats');
     return response.json();
 }
@@ -111,13 +111,13 @@ export async function getTickets(params?: {
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
 
     const url = `${API_BASE_URL}/admin/tickets${queryParams.toString() ? `?${queryParams}` : ''}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch tickets');
     return response.json();
 }
 
 export async function getTicketDetail(ticketId: number): Promise<TicketDetail> {
-    const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`);
+    const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch ticket detail');
     return response.json();
 }
@@ -125,7 +125,7 @@ export async function getTicketDetail(ticketId: number): Promise<TicketDetail> {
 export async function updateTicket(ticketId: number, update: TicketUpdateRequest): Promise<TicketDetail> {
     const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(update),
     });
     if (!response.ok) throw new Error('Failed to update ticket');
@@ -135,7 +135,7 @@ export async function updateTicket(ticketId: number, update: TicketUpdateRequest
 export async function replyToTicket(ticketId: number, message: string): Promise<TicketReply> {
     const response = await fetch(`${API_BASE_URL}/admin/tickets/${ticketId}/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ message }),
     });
     if (!response.ok) throw new Error('Failed to reply to ticket');

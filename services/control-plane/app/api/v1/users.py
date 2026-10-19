@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, func, or_
 from app.core.db import get_session
 from app.core.models import User, Deployment, DeploymentStatus
+from app.core.automation_models import CostTracking
 from pydantic import BaseModel
+from app.core.auth import require_admin
 
 router = APIRouter()
 
@@ -21,6 +23,7 @@ class UserListItem(BaseModel):
     email: str
     clerk_id: Optional[str]
     plan: str
+    is_active: bool
     created_at: datetime
     total_deployments: int
     active_deployments: int
@@ -33,6 +36,7 @@ class UserDetail(BaseModel):
     clerk_id: Optional[str]
     auth_provider: str
     plan: str
+    is_active: bool
     created_at: datetime
     stats: UserStats
 
@@ -85,8 +89,9 @@ async def list_users(
         
         active_deployments = [d for d in deployments if d.status == DeploymentStatus.RUNNING]
         
-        # Calculate total cost (mock for now)
-        total_cost = 0.0  # TODO: Calculate from usage table
+        total_cost = session.exec(
+            select(func.coalesce(func.sum(CostTracking.cost_usd), 0.0)).where(CostTracking.user_id == user.id)
+        ).one()
         
         # Get last active time
         last_active = None
@@ -98,6 +103,7 @@ async def list_users(
             email=user.email,
             clerk_id=user.clerk_id,
             plan=user.plan,
+            is_active=user.is_active,
             created_at=user.created_at,
             total_deployments=len(deployments),
             active_deployments=len(active_deployments),
@@ -129,14 +135,13 @@ async def get_user_details(
     # Calculate stats
     active_deployments = [d for d in deployments if d.status == DeploymentStatus.RUNNING]
     
-    # Calculate GPU hours (mock for now)
-    total_gpu_hours = 0.0
-    for deployment in deployments:
-        if deployment.uptime_seconds:
-            total_gpu_hours += deployment.uptime_seconds / 3600.0
-    
-    # Calculate total cost (mock for now)
-    total_cost = 0.0  # TODO: Calculate from usage table
+    usage_totals = session.exec(
+        select(
+            func.coalesce(func.sum(CostTracking.gpu_hours), 0.0),
+            func.coalesce(func.sum(CostTracking.cost_usd), 0.0),
+        ).where(CostTracking.user_id == user_id)
+    ).one()
+    total_gpu_hours, total_cost = usage_totals
     
     # Get last active time
     last_active = None
@@ -157,6 +162,7 @@ async def get_user_details(
         clerk_id=user.clerk_id,
         auth_provider=user.auth_provider,
         plan=user.plan,
+        is_active=user.is_active,
         created_at=user.created_at,
         stats=stats
     )
@@ -203,7 +209,8 @@ async def update_user(
 @router.post("/users/{user_id}/disable")
 async def disable_user(
     user_id: int,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_admin),
 ):
     """
     Disable a user account.
@@ -213,19 +220,19 @@ async def disable_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # TODO: Add is_active field to User model
-    # For now, we'll just return success
-    # user.is_active = False
-    # session.add(user)
-    # session.commit()
-    
-    return {"ok": True, "message": "User disabled (TODO: implement is_active field)"}
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot disable your own account")
+    user.is_active = False
+    session.add(user)
+    session.commit()
+    return {"ok": True, "is_active": False}
 
 
 @router.post("/users/{user_id}/enable")
 async def enable_user(
     user_id: int,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_admin),
 ):
     """
     Enable a user account.
@@ -234,12 +241,10 @@ async def enable_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # TODO: Add is_active field to User model
-    # user.is_active = True
-    # session.add(user)
-    # session.commit()
-    
-    return {"ok": True, "message": "User enabled (TODO: implement is_active field)"}
+    user.is_active = True
+    session.add(user)
+    session.commit()
+    return {"ok": True, "is_active": True}
 
 
 @router.get("/users/{user_id}/deployments", response_model=List[Deployment])

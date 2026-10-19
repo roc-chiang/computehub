@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useCallback, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Rocket, AlertCircle, BookTemplate, Save } from "lucide-react";
@@ -32,7 +32,7 @@ interface ProviderBinding {
     is_active: boolean;
 }
 
-export default function NewDeployment() {
+function NewDeploymentContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [loading, setLoading] = useState(false);
@@ -40,7 +40,10 @@ export default function NewDeployment() {
     const { getToken } = useAuth();
 
     // Form State - start with local to trigger auto-selection to paid provider
-    const [provider, setProvider] = useState<"local" | "runpod" | "vast">("local");
+    const [provider, setProvider] = useState<"local" | "runpod" | "vast">("runpod");
+    const handleProviderSelect = useCallback((value: string) => {
+        setProvider(value as "local" | "runpod" | "vast");
+    }, []);
     const [name, setName] = useState("");
     const [image, setImage] = useState("");
     const [gpuType, setGpuType] = useState("RTX4090");
@@ -195,7 +198,8 @@ export default function NewDeployment() {
                 provider,
                 gpu_type: gpuType,
                 image,
-                env: {}
+                gpu_count: 1,
+                env_vars: "{}"
             });
 
             toast({
@@ -383,7 +387,7 @@ export default function NewDeployment() {
                         <GPUSelector
                             selectedGpu={gpuType}
                             onSelect={setGpuType}
-                            onProviderSelect={(p) => setProvider(p as "local" | "runpod" | "vast")}
+                            onProviderSelect={handleProviderSelect}
                             selectedProvider={provider}
                         />
                     </section>
@@ -465,5 +469,13 @@ export default function NewDeployment() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function NewDeployment() {
+    return (
+        <Suspense fallback={<div className="container mx-auto py-8">Loading deployment form...</div>}>
+            <NewDeploymentContent />
+        </Suspense>
     );
 }

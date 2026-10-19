@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Table,
     TableBody,
@@ -55,7 +55,7 @@ export default function DeploymentsPage() {
     const [batchOperation, setBatchOperation] = useState<'stop' | 'delete' | null>(null);
     const { toast } = useToast();
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [deploymentsData, statsData] = await Promise.all([
@@ -78,11 +78,11 @@ export default function DeploymentsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [providerFilter, search, statusFilter, toast]);
 
     useEffect(() => {
         fetchData();
-    }, [search, statusFilter, providerFilter]);
+    }, [fetchData]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {

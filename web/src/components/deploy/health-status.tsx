@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw } from "lucide-react";
-import { getHeaders } from "@/lib/api";
+import { API_BASE_URL, getHeaders } from "@/lib/api";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface HealthStatusProps {
@@ -32,16 +32,10 @@ export function HealthStatus({ deploymentId }: HealthStatusProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isChecking, setIsChecking] = useState(false);
 
-    useEffect(() => {
-        fetchHealthStatus();
-        const interval = setInterval(fetchHealthStatus, 30000); // Refresh every 30 seconds
-        return () => clearInterval(interval);
-    }, [deploymentId]);
-
-    const fetchHealthStatus = async () => {
+    const fetchHealthStatus = useCallback(async () => {
         try {
             const response = await fetch(
-                `/api/v1/automation/deployments/${deploymentId}/health`,
+                `${API_BASE_URL}/automation/deployments/${deploymentId}/health`,
                 { headers: getHeaders() }
             );
 
@@ -54,13 +48,19 @@ export function HealthStatus({ deploymentId }: HealthStatusProps) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [deploymentId]);
+
+    useEffect(() => {
+        fetchHealthStatus();
+        const interval = setInterval(() => void fetchHealthStatus(), 30000);
+        return () => clearInterval(interval);
+    }, [fetchHealthStatus]);
 
     const triggerHealthCheck = async () => {
         setIsChecking(true);
         try {
             const response = await fetch(
-                `/api/v1/automation/deployments/${deploymentId}/health/check`,
+                `${API_BASE_URL}/automation/deployments/${deploymentId}/health/check`,
                 {
                     method: "POST",
                     headers: getHeaders(),

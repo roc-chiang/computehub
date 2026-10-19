@@ -4,9 +4,8 @@ Handles /start and /bind commands for user binding
 """
 
 import logging
-import asyncio
+import hashlib
 from datetime import datetime
-from typing import Optional
 
 try:
     from telegram import Update
@@ -22,14 +21,10 @@ except ImportError:
 from sqlmodel import Session, select
 
 from app.core.db import get_session
-from app.core.models import NotificationSettings
+from app.core.models import NotificationSettings, TelegramBindToken
 from app.services.telegram_service import get_telegram_service
 
 logger = logging.getLogger(__name__)
-
-# Import bind_tokens from notifications API
-from app.api.v1.notifications import bind_tokens
-
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -53,27 +48,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     bind_token = context.args[0]
     
-    # Validate token
-    if bind_token not in bind_tokens:
-        await update.message.reply_text(
-            "❌ Invalid or expired binding token.\n\n"
-            "Please generate a new binding link from the ComputeHub settings page."
-        )
-        return
-    
-    token_data = bind_tokens[bind_token]
-    user_id = token_data["user_id"]
-    expires_at = token_data["expires_at"]
-    
-    # Check if token expired
-    if datetime.utcnow() > expires_at:
-        del bind_tokens[bind_token]
-        await update.message.reply_text(
-            "❌ Binding token has expired.\n\n"
-            "Please generate a new binding link from the ComputeHub settings page."
-        )
-        return
-    
     # Update user's notification settings
     try:
         # Get database session
@@ -81,51 +55,35 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session = next(session_gen)
         
         try:
-            from sqlalchemy.exc import IntegrityError
-            from sqlalchemy import text
-            
-            # Use direct UPDATE to avoid IntegrityError
-            result = session.execute(
-                text("""
-                    UPDATE notification_settings 
-                    SET telegram_chat_id = :chat_id,
-                        telegram_username = :username,
-                        enable_telegram = 1,
-                        updated_at = :updated_at
-                    WHERE user_id = :user_id
-                """),
-                {
-                    "chat_id": chat_id,
-                    "username": username,
-                    "updated_at": datetime.utcnow().isoformat(),
-                    "user_id": user_id
-                }
-            )
-            
-            # If no rows updated, record doesn't exist, create it
-            if result.rowcount == 0:
-                session.execute(
-                    text("""
-                        INSERT INTO notification_settings 
-                        (user_id, telegram_chat_id, telegram_username, enable_telegram, 
-                         enable_email, enable_deployment_success, enable_deployment_failure,
-                         enable_instance_down, enable_cost_alert, enable_price_change,
-                         cost_alert_threshold, created_at, updated_at)
-                        VALUES 
-                        (:user_id, :chat_id, :username, 1, 1, 1, 1, 1, 1, 0, 100.0, :now, :now)
-                    """),
-                    {
-                        "user_id": user_id,
-                        "chat_id": chat_id,
-                        "username": username,
-                        "now": datetime.utcnow().isoformat()
-                    }
+            token_record = session.exec(
+                select(TelegramBindToken).where(
+                    TelegramBindToken.token_hash == hashlib.sha256(bind_token.encode()).hexdigest(),
+                    TelegramBindToken.used_at.is_(None),
                 )
-            
+            ).first()
+            if not token_record or datetime.utcnow() > token_record.expires_at:
+                await update.message.reply_text(
+                    "❌ Invalid or expired binding token.\n\n"
+                    "Please generate a new binding link from the ComputeHub settings page."
+                )
+                return
+
+            token_record.used_at = datetime.utcnow()
+            session.add(token_record)
             session.commit()
-            
-            # Remove used token
-            del bind_tokens[bind_token]
+
+            user_id = token_record.user_id
+            settings = session.exec(
+                select(NotificationSettings).where(NotificationSettings.user_id == user_id)
+            ).first()
+            if not settings:
+                settings = NotificationSettings(user_id=user_id)
+            settings.telegram_chat_id = chat_id
+            settings.telegram_username = username
+            settings.enable_telegram = True
+            settings.updated_at = datetime.utcnow()
+            session.add(settings)
+            session.commit()
             
             await update.message.reply_text(
                 "✅ Successfully bound your Telegram account!\n\n"

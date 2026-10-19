@@ -66,7 +66,7 @@ async def sync_single_deployment(session: Session, deployment: Deployment):
     """
     try:
         # Get provider adapter
-        adapter = ProviderManager.get_adapter(deployment.provider, session)
+        adapter = ProviderManager.get_deployment_adapter(deployment, session)
         
         # Call get_status with exposed_port
         status_info = await adapter.get_status(
@@ -100,7 +100,8 @@ async def sync_single_deployment(session: Session, deployment: Deployment):
         if status_info.get("ssh_connection_string"):
             deployment.ssh_connection_string = status_info["ssh_connection_string"]
         if status_info.get("ssh_password"):
-            deployment.ssh_password = status_info["ssh_password"]
+            from app.core.encryption import get_encryption
+            deployment.ssh_password = get_encryption().encrypt(status_info["ssh_password"])
         
         # Update runtime info if available
         if status_info.get("uptime_seconds") is not None:

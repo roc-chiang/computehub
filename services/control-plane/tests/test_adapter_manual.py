@@ -8,7 +8,7 @@ import os
 from app.core.provider_manager import ProviderManager
 from app.core.models import ProviderType
 
-async def test_local_adapter():
+async def run_local_adapter_test():
     print("Testing Local Adapter...")
     adapter = ProviderManager.get_adapter(ProviderType.LOCAL)
     
@@ -34,4 +34,4 @@ async def test_local_adapter():
         print("FAILURE: Local Adapter test failed.")
 
 if __name__ == "__main__":
-    asyncio.run(test_local_adapter())
+    asyncio.run(run_local_adapter_test())

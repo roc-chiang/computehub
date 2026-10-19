@@ -23,6 +23,7 @@ from app.core.automation_models import (
 )
 from app.scheduler.rule_engine import RuleEngine
 from app.core.decorators import require_pro_license
+from app.core.auth import get_current_user
 
 
 router = APIRouter()
@@ -52,39 +53,6 @@ class RuleUpdate(BaseModel):
     target_type: Optional[str] = None
     target_id: Optional[int] = None
     is_enabled: Optional[bool] = None
-
-
-# ============================================================================
-# Dependency: get_current_user
-# ============================================================================
-
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-security = HTTPBearer()
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
-) -> User:
-    """Get current user from JWT token"""
-    from app.core.auth import verify_token
-    
-    token = credentials.credentials
-    payload = verify_token(token)
-    
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-    
-    user = session.get(User, int(user_id))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return user
 
 
 # ============================================================================
@@ -137,6 +105,18 @@ async def create_rule(
         RuleActionType(rule_data.action_type)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid trigger or action type")
+    if rule_data.action_type == RuleActionType.MIGRATE.value:
+        raise HTTPException(
+            status_code=501,
+            detail="Migration is unavailable until data transfer and verification are implemented",
+        )
+    if rule_data.trigger_type == RuleTriggerType.PRICE_CHANGE.value:
+        percentage = rule_data.trigger_config.get("change_percentage")
+        direction = rule_data.trigger_config.get("direction")
+        if not isinstance(percentage, (int, float)) or percentage <= 0:
+            raise HTTPException(status_code=400, detail="Price change percentage must be greater than zero")
+        if direction not in {"increase", "decrease", "either"}:
+            raise HTTPException(status_code=400, detail="Invalid price change direction")
     
     # Validate target if specified
     if rule_data.target_type == "deployment" and rule_data.target_id:

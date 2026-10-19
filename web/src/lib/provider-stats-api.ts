@@ -1,5 +1,7 @@
 // Provider Statistics Types and API
 
+import { getHeaders } from "./api";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export interface MonthlyData {
@@ -32,7 +34,7 @@ export interface ProviderStats {
 export interface PerformanceOverTime {
     date: string;
     success_rate: number;
-    avg_startup_time: number;
+    avg_startup_time: number | null;
 }
 
 export interface RecentError {
@@ -45,7 +47,7 @@ export interface ProviderMetrics {
     provider_id: number;
     provider_name: string;
     success_rate: number;
-    avg_startup_time_seconds: number;
+    avg_startup_time_seconds: number | null;
     error_rate: number;
     uptime_percentage: number;
     recent_errors: RecentError[];
@@ -71,19 +73,19 @@ export interface ProvidersSummary {
 // API Functions
 
 export async function getProviderStats(providerId: number): Promise<ProviderStats> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${providerId}/stats`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${providerId}/stats`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch provider stats');
     return response.json();
 }
 
 export async function getProviderMetrics(providerId: number): Promise<ProviderMetrics> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${providerId}/metrics`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/${providerId}/metrics`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch provider metrics');
     return response.json();
 }
 
 export async function getProvidersSummary(): Promise<ProvidersSummary> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/summary`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/providers/summary`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch providers summary');
     return response.json();
 }

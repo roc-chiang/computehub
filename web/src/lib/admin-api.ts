@@ -1,4 +1,4 @@
-import { User, Deployment } from "./api";
+import { Deployment, getHeaders } from "./api";
 
 // Use absolute URL for API calls in production
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -8,6 +8,7 @@ export interface UserListItem {
     email: string;
     clerk_id: string | null;
     plan: string;
+    is_active: boolean;
     created_at: string;
     total_deployments: number;
     active_deployments: number;
@@ -29,6 +30,7 @@ export interface UserDetail {
     clerk_id: string | null;
     auth_provider: string;
     plan: string;
+    is_active: boolean;
     created_at: string;
     stats: UserStats;
 }
@@ -61,8 +63,9 @@ export interface PlatformStats {
         total_cost: number;
     };
     revenue: {
-        total: number;
-        this_month: number;
+        total: number | null;
+        this_month: number | null;
+        status: "unavailable" | "available";
     };
     providers: {
         total: number;
@@ -93,13 +96,13 @@ export async function getUsers(params?: {
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
 
-    const response = await fetch(`${API_URL}/api/v1/admin/users?${queryParams}`);
+    const response = await fetch(`${API_URL}/api/v1/admin/users?${queryParams}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch users');
     return response.json();
 }
 
 export async function getUserDetails(userId: number): Promise<UserDetail> {
-    const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}`);
+    const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch user details');
     return response.json();
 }
@@ -107,7 +110,7 @@ export async function getUserDetails(userId: number): Promise<UserDetail> {
 export async function updateUser(userId: number, data: { plan?: string; email?: string }) {
     const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to update user');
@@ -117,6 +120,7 @@ export async function updateUser(userId: number, data: { plan?: string; email?: 
 export async function disableUser(userId: number) {
     const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}/disable`, {
         method: 'POST',
+        headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to disable user');
     return response.json();
@@ -125,25 +129,26 @@ export async function disableUser(userId: number) {
 export async function enableUser(userId: number) {
     const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}/enable`, {
         method: 'POST',
+        headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to enable user');
     return response.json();
 }
 
 export async function getUserDeployments(userId: number, limit = 10): Promise<Deployment[]> {
-    const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}/deployments?limit=${limit}`);
+    const response = await fetch(`${API_URL}/api/v1/admin/users/${userId}/deployments?limit=${limit}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch user deployments');
     return response.json();
 }
 
 export async function getPlatformStats(): Promise<PlatformStats> {
-    const response = await fetch(`${API_URL}/api/v1/admin/stats`);
+    const response = await fetch(`${API_URL}/api/v1/admin/stats`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch platform stats');
     return response.json();
 }
 
 export async function getRecentActivity(limit = 10): Promise<ActivityItem[]> {
-    const response = await fetch(`${API_URL}/api/v1/admin/activity/recent?limit=${limit}`);
+    const response = await fetch(`${API_URL}/api/v1/admin/activity/recent?limit=${limit}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch recent activity');
     return response.json();
 }

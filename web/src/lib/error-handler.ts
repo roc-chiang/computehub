@@ -1,5 +1,6 @@
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 export interface ApiError {
     message: string;
@@ -105,7 +106,7 @@ export function parseApiError(error: any): ApiError {
 export function useErrorHandler() {
     const { toast } = useToast();
 
-    const handleError = (error: any, customMessage?: string) => {
+    const handleError = useCallback((error: any, customMessage?: string) => {
         const apiError = parseApiError(error);
 
         toast({
@@ -113,7 +114,7 @@ export function useErrorHandler() {
             title: customMessage || apiError.message,
             description: apiError.details,
         });
-    };
+    }, [toast]);
 
     return { handleError };
 }

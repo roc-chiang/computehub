@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollText, Copy, Download, RefreshCw, Activity } from "lucide-react";
@@ -16,7 +16,7 @@ export function LogsViewer() {
     const [autoRefresh, setAutoRefresh] = useState(true);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const fetchLogs = async () => {
+    const fetchLogs = useCallback(async () => {
         if (!id) return;
         try {
             const data = await getDeploymentLogs(parseInt(id));
@@ -26,9 +26,9 @@ export function LogsViewer() {
         } catch (error) {
             console.error("Failed to fetch logs:", error);
         }
-    };
+    }, [id]);
 
-    const fetchActivity = async () => {
+    const fetchActivity = useCallback(async () => {
         if (!id) return;
         try {
             const data = await getDeploymentActivity(parseInt(id));
@@ -36,7 +36,7 @@ export function LogsViewer() {
         } catch (error) {
             console.error("Failed to fetch activity:", error);
         }
-    };
+    }, [id]);
 
     useEffect(() => {
         fetchLogs();
@@ -53,7 +53,7 @@ export function LogsViewer() {
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [id, autoRefresh]);
+    }, [autoRefresh, fetchActivity, fetchLogs]);
 
     // Auto-scroll to bottom only if already near bottom or on first load
     useEffect(() => {

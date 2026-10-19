@@ -26,7 +26,7 @@ async def stop_deployment(
     deployment_name = deployment.name
     
     try:
-        adapter = ProviderManager.get_adapter(deployment.provider, session)
+        adapter = ProviderManager.get_deployment_adapter(deployment, session)
         success = await adapter.stop_instance(deployment.instance_id)
         
         if success:
@@ -49,9 +49,11 @@ async def stop_deployment(
             
             return {"message": "Instance stopped successfully"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to stop instance")
+            raise RuntimeError("Provider did not stop the instance")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail="Provider stop failed") from e
 
 
 @router.post("/{deployment_id}/start")
@@ -71,7 +73,7 @@ async def start_deployment(
     deployment_name = deployment.name
     
     try:
-        adapter = ProviderManager.get_adapter(deployment.provider, session)
+        adapter = ProviderManager.get_deployment_adapter(deployment, session)
         success = await adapter.start_instance(deployment.instance_id)
         
         if success:
@@ -104,29 +106,7 @@ async def start_deployment(
             
             return {"message": "Instance starting"}
         else:
-            # Record Failure
-            log = ActivityLog(
-                deployment_id=deployment.id,
-                action="START",
-                status="FAILED",
-                details="Adapter returned failure"
-            )
-            session.add(log)
-            session.commit()
-            
-            # Send failure notification
-            try:
-                notification_service = get_notification_service(session)
-                await notification_service.send_notification(
-                    user_id=current_user.clerk_id,
-                    event_type=NotificationEventType.DEPLOYMENT_FAILURE,
-                    title=f"Failed to Start: {deployment_name}",
-                    message=f"Unable to start deployment '{deployment_name}'. The provider may be experiencing resource constraints. Please try again later."
-                )
-            except Exception as notif_error:
-                print(f"[WARNING] Failed to send notification: {str(notif_error)}")
-            
-            raise HTTPException(status_code=500, detail="Failed to start instance")
+            raise RuntimeError("Provider did not start the instance")
     except Exception as e:
         # Record Error
         log = ActivityLog(
@@ -178,7 +158,7 @@ async def restart_deployment(
         raise HTTPException(status_code=400, detail="No instance to restart")
     
     try:
-        adapter = ProviderManager.get_adapter(deployment.provider, session)
+        adapter = ProviderManager.get_deployment_adapter(deployment, session)
         success = await adapter.restart_instance(deployment.instance_id)
         
         if success:
@@ -198,16 +178,7 @@ async def restart_deployment(
             session.refresh(deployment)
             return {"message": "Instance restarting"}
         else:
-            # Record Failure
-            log = ActivityLog(
-                deployment_id=deployment.id,
-                action="RESTART",
-                status="FAILED",
-                details="Adapter returned failure"
-            )
-            session.add(log)
-            session.commit()
-            raise HTTPException(status_code=500, detail="Failed to restart instance")
+            raise RuntimeError("Provider did not restart the instance")
     except Exception as e:
         # Record Error
         log = ActivityLog(
@@ -218,7 +189,7 @@ async def restart_deployment(
         )
         session.add(log)
         session.commit()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail="Provider restart failed") from e
 
 
 # Batch Operations
@@ -262,11 +233,11 @@ async def batch_start_deployments(
                 failed.append({"id": deployment_id, "error": "No instance to start"})
                 continue
             
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             result = await adapter.start_instance(deployment.instance_id)
             
             if result:
-                deployment.status = DeploymentStatus.RUNNING
+                deployment.status = DeploymentStatus.CREATING
                 session.add(deployment)
                 session.commit()
                 success.append(deployment_id)
@@ -308,7 +279,7 @@ async def batch_stop_deployments(
                 failed.append({"id": deployment_id, "error": "No instance to stop"})
                 continue
             
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             result = await adapter.stop_instance(deployment.instance_id)
             
             if result:
@@ -352,11 +323,10 @@ async def batch_delete_deployments(
             
             # Delete from provider if instance exists
             if deployment.instance_id:
-                try:
-                    adapter = ProviderManager.get_adapter(deployment.provider, session)
-                    await adapter.delete_instance(deployment.instance_id)
-                except:
-                    pass  # Continue even if provider deletion fails
+                adapter = ProviderManager.get_deployment_adapter(deployment, session)
+                deleted = await adapter.delete_instance(deployment.instance_id)
+                if not deleted:
+                    raise RuntimeError("Provider did not delete the instance")
             
             # Delete from database
             session.delete(deployment)

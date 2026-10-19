@@ -10,6 +10,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from datetime import datetime
+from html import escape
+import os
 from pydantic import BaseModel, EmailStr
 
 from app.core.db import get_session
@@ -25,6 +27,7 @@ from app.core.team_models import (
 )
 from app.api.v1.deployments import get_current_user
 from app.api.v1.organizations import require_organization_role
+from app.services.email_service import get_email_service
 
 router = APIRouter()
 
@@ -141,7 +144,15 @@ async def invite_member(
             detail="An invitation has already been sent to this email"
         )
     
-    # Create invitation
+    organization = session.get(Organization, organization_id)
+    if not organization:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    email_service = get_email_service(session)
+    app_url = os.getenv("APP_URL")
+    if not email_service.is_configured() or not app_url:
+        raise HTTPException(status_code=503, detail="Invitation email service is not configured")
+
     invitation = OrganizationInvitation.create_invitation(
         organization_id=organization_id,
         email=invite_data.email,
@@ -153,7 +164,20 @@ async def invite_member(
     session.commit()
     session.refresh(invitation)
     
-    # TODO: Send invitation email
+    invitation_url = f"{app_url.rstrip('/')}/invitations/{invitation.token}"
+    sent = await email_service.send_email(
+        to_email=invite_data.email,
+        subject=f"Invitation to join {organization.name} on ComputeHub",
+        html_content=(
+            f"<p>You were invited to join <strong>{escape(organization.name)}</strong> on ComputeHub.</p>"
+            f"<p><a href=\"{escape(invitation_url, quote=True)}\">Accept invitation</a></p>"
+        ),
+        text_content=f"Accept your invitation to {organization.name}: {invitation_url}",
+    )
+    if not sent:
+        session.delete(invitation)
+        session.commit()
+        raise HTTPException(status_code=502, detail="Invitation email could not be sent")
     
     return invitation
 

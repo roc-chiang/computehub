@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -73,27 +73,16 @@ export default function ProvidersPage() {
 
     const { toast } = useToast();
 
-    useEffect(() => {
-        fetchSummary();
-        fetchProvidersList();
-    }, []);
-
-    useEffect(() => {
-        if (selectedProviderId) {
-            fetchProviderData();
-        }
-    }, [selectedProviderId]);
-
-    const fetchProvidersList = async () => {
+    const fetchProvidersList = useCallback(async () => {
         try {
             const data = await listProviders();
             setProviders(data);
         } catch (error) {
             console.error("Failed to load providers list:", error);
         }
-    };
+    }, []);
 
-    const fetchSummary = async () => {
+    const fetchSummary = useCallback(async () => {
         try {
             const summaryData = await getProvidersSummary();
             setSummary(summaryData);
@@ -110,9 +99,9 @@ export default function ProvidersPage() {
             });
             setLoading(false);
         }
-    };
+    }, [toast]);
 
-    const fetchProviderData = async () => {
+    const fetchProviderData = useCallback(async () => {
         if (!selectedProviderId) return;
 
         setLoading(true);
@@ -132,7 +121,18 @@ export default function ProvidersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedProviderId, toast]);
+
+    useEffect(() => {
+        fetchSummary();
+        fetchProvidersList();
+    }, [fetchProvidersList, fetchSummary]);
+
+    useEffect(() => {
+        if (selectedProviderId) {
+            fetchProviderData();
+        }
+    }, [fetchProviderData, selectedProviderId]);
 
     if (loading) {
         return (

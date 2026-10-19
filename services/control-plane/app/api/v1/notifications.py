@@ -3,11 +3,12 @@ Notifications API
 Handles notification settings, history, and Telegram binding
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
+import hashlib
 import secrets
 
 from app.core.db import get_session
@@ -16,11 +17,14 @@ from app.core.models import (
     NotificationHistory,
     NotificationEventType,
     NotificationChannel,
-    NotificationStatus
+    NotificationStatus,
+    TelegramBindToken,
 )
 from app.services.notification_service import get_notification_service
+from app.services.webhook_service import WebhookService
 from app.api.v1.deployments import get_current_user, User
 from app.core.decorators import require_pro_license
+from app.core.encryption import encrypt_value
 
 router = APIRouter()
 
@@ -92,7 +96,7 @@ class NotificationHistoryResponse(BaseModel):
 
 class TestNotificationRequest(BaseModel):
     """Test notification request"""
-    channel: str  # telegram or email
+    channel: Literal["telegram", "email", "webhook"]
 
 class TestNotificationResponse(BaseModel):
     """Test notification response"""
@@ -130,34 +134,10 @@ async def get_notification_settings(
         except IntegrityError:
             # Handle race condition - another request may have created it
             session.rollback()
-            
-            # Use raw SQL to bypass session cache
-            from sqlalchemy import text
-            result = session.execute(
-                text("SELECT * FROM notification_settings WHERE user_id = :user_id"),
-                {"user_id": user_id}
+            settings = session.exec(
+                select(NotificationSettings).where(NotificationSettings.user_id == user_id)
             ).first()
-            
-            if result:
-                # Manually create the object from raw result
-                settings = NotificationSettings(
-                    id=result[0],
-                    user_id=result[1],
-                    telegram_chat_id=result[2],
-                    telegram_username=result[3],
-                    email=result[4],
-                    enable_telegram=bool(result[5]),
-                    enable_email=bool(result[6]),
-                    enable_deployment_success=bool(result[7]),
-                    enable_deployment_failure=bool(result[8]),
-                    enable_instance_down=bool(result[9]),
-                    enable_cost_alert=bool(result[10]),
-                    enable_price_change=bool(result[11]),
-                    cost_alert_threshold=float(result[12]),
-                    created_at=result[13],
-                    updated_at=result[14]
-                )
-            else:
+            if not settings:
                 raise HTTPException(
                     status_code=500, 
                     detail="Failed to create notification settings"
@@ -170,8 +150,11 @@ async def get_notification_settings(
         telegram_chat_id=settings.telegram_chat_id,
         telegram_username=settings.telegram_username,
         email=settings.email,
+        webhook_url=settings.webhook_url,
+        webhook_secret=None,
         enable_telegram=settings.enable_telegram,
         enable_email=settings.enable_email,
+        enable_webhook=settings.enable_webhook,
         enable_deployment_success=settings.enable_deployment_success,
         enable_deployment_failure=settings.enable_deployment_failure,
         enable_instance_down=settings.enable_instance_down,
@@ -202,10 +185,23 @@ async def update_notification_settings(
     # Update fields
     if update.email is not None:
         settings.email = update.email
+    if update.webhook_url is not None:
+        if update.webhook_url:
+            try:
+                await WebhookService(session)._validate_public_url(update.webhook_url)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+        settings.webhook_url = update.webhook_url or None
+    if update.webhook_secret:
+        settings.webhook_secret = encrypt_value(update.webhook_secret)
     if update.enable_telegram is not None:
         settings.enable_telegram = update.enable_telegram
     if update.enable_email is not None:
         settings.enable_email = update.enable_email
+    if update.enable_webhook is not None:
+        if update.enable_webhook and not settings.webhook_url:
+            raise HTTPException(status_code=422, detail="Configure a webhook URL before enabling webhooks")
+        settings.enable_webhook = update.enable_webhook
     if update.enable_deployment_success is not None:
         settings.enable_deployment_success = update.enable_deployment_success
     if update.enable_deployment_failure is not None:
@@ -228,8 +224,11 @@ async def update_notification_settings(
         telegram_chat_id=settings.telegram_chat_id,
         telegram_username=settings.telegram_username,
         email=settings.email,
+        webhook_url=settings.webhook_url,
+        webhook_secret=None,
         enable_telegram=settings.enable_telegram,
         enable_email=settings.enable_email,
+        enable_webhook=settings.enable_webhook,
         enable_deployment_success=settings.enable_deployment_success,
         enable_deployment_failure=settings.enable_deployment_failure,
         enable_instance_down=settings.enable_instance_down,
@@ -241,9 +240,6 @@ async def update_notification_settings(
 # ============================================================================
 # Telegram Binding Endpoints
 # ============================================================================
-
-# In-memory storage for bind tokens (in production, use Redis)
-bind_tokens = {}
 
 @router.post("/notifications/telegram/bind", response_model=TelegramBindResponse)
 @require_pro_license
@@ -267,11 +263,20 @@ async def create_telegram_bind_token(
     from datetime import timedelta
     expires_at = datetime.utcnow() + timedelta(hours=24)
     
-    # Store token
-    bind_tokens[token] = {
-        "user_id": current_user.clerk_id,
-        "expires_at": expires_at
-    }
+    existing_tokens = session.exec(
+        select(TelegramBindToken).where(
+            TelegramBindToken.user_id == current_user.clerk_id,
+            TelegramBindToken.used_at.is_(None),
+        )
+    ).all()
+    for existing_token in existing_tokens:
+        session.delete(existing_token)
+    session.add(TelegramBindToken(
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+        user_id=current_user.clerk_id,
+        expires_at=expires_at,
+    ))
+    session.commit()
     
     # Create bind URL
     bind_url = f"https://t.me/{telegram.bot_username}?start={token}"
@@ -405,13 +410,18 @@ async def test_notification(
         user_id=current_user.clerk_id,
         event_type=NotificationEventType.DEPLOYMENT_SUCCESS,
         title=title,
-        message=message
+        message=message,
+        channels={NotificationChannel(request.channel)},
     )
     
-    if not results:
+    if not any(results.values()):
         raise HTTPException(
-            status_code=400,
-            detail="No notification channels are configured or enabled"
+            status_code=502 if results else 400,
+            detail=(
+                "All configured notification channels failed"
+                if results
+                else "No notification channels are configured or enabled"
+            ),
         )
     
     return TestNotificationResponse(

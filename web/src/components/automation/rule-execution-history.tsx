@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { API_BASE_URL, getHeaders } from "@/lib/api";
 
 interface ExecutionLog {
     id: number;
@@ -21,20 +22,14 @@ export function RuleExecutionHistory({ ruleId }: { ruleId?: number }) {
     const [logs, setLogs] = useState<ExecutionLog[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchLogs();
-    }, [ruleId]);
-
-    const fetchLogs = async () => {
+    const fetchLogs = useCallback(async () => {
         try {
             const url = ruleId
-                ? `/api/v1/rules/${ruleId}/executions?limit=50`
-                : `/api/v1/execution-logs?limit=100`;
+                ? `${API_BASE_URL}/rules/${ruleId}/executions?limit=50`
+                : `${API_BASE_URL}/execution-logs?limit=100`;
 
             const response = await fetch(url, {
-                headers: {
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`
-                }
+                headers: getHeaders(),
             });
 
             if (response.ok) {
@@ -46,7 +41,11 @@ export function RuleExecutionHistory({ ruleId }: { ruleId?: number }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [ruleId]);
+
+    useEffect(() => {
+        fetchLogs();
+    }, [fetchLogs]);
 
     const getStatusIcon = (status: string) => {
         switch (status) {

@@ -213,7 +213,14 @@ export function DeploymentTable({ data, onDelete, showFilter = true }: Deploymen
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <StatusBadge status={deploy.status} />
+                                        <div className="space-y-1">
+                                            <StatusBadge status={deploy.status} />
+                                            {deploy.sync_error && (
+                                                <p className="max-w-48 text-xs text-amber-700" title={deploy.sync_error}>
+                                                    Status refresh unavailable
+                                                </p>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         {isRunning && deploy.endpoint_url ? (

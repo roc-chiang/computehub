@@ -676,18 +676,7 @@ class RunPodAdapter(ProviderAdapter):
             
             return mock_logs[-lines:]
         
-        # Real RunPod API call
-        try:
-            # RunPod doesn't have a direct logs API, would need to use SSH or other method
-            # For now, return placeholder
-            return [
-                "[INFO] Log retrieval from RunPod requires SSH access",
-                "[INFO] Please use SSH connection to view logs",
-                f"[INFO] Instance ID: {instance_id}"
-            ]
-        except Exception as e:
-            print(f"[RunPodAdapter] Failed to get logs: {e}")
-            return [f"[ERROR] Failed to retrieve logs: {str(e)}"]
+        raise NotImplementedError("RunPod log retrieval requires a configured SSH connection")
     
     async def get_metrics(self, instance_id: str) -> Dict[str, Any]:
         """Get performance metrics from RunPod instance."""
@@ -705,13 +694,4 @@ class RunPodAdapter(ProviderAdapter):
                 "network_tx_bytes": random.randint(500000, 5000000)
             }
         
-        # Real RunPod API - would need to implement actual metrics fetching
-        # For now, return placeholder
-        return {
-            "gpu_utilization": 0,
-            "gpu_memory_utilization": 0,
-            "cpu_utilization": 0,
-            "ram_utilization": 0,
-            "network_rx_bytes": 0,
-            "network_tx_bytes": 0
-        }
+        raise NotImplementedError("RunPod metrics retrieval is not configured")

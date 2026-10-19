@@ -10,7 +10,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getCostSummary, getCostTimeline, getCostBreakdown, type CostSummary, type TimelinePoint, type CostBreakdown } from "@/lib/costs-api";
 import { useAuth } from "@clerk/nextjs";
 import { setAuthToken } from "@/lib/api";
-import { getDeployments, type Deployment } from "@/lib/api";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -18,7 +17,6 @@ export default function CostsPage() {
     const [summary, setSummary] = useState<CostSummary | null>(null);
     const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
     const [breakdown, setBreakdown] = useState<CostBreakdown | null>(null);
-    const [deployments, setDeployments] = useState<Deployment[]>([]);
     const [loading, setLoading] = useState(true);
     const { getToken, isLoaded, isSignedIn } = useAuth();
 
@@ -33,16 +31,14 @@ export default function CostsPage() {
                 const token = await getToken();
                 setAuthToken(token);
 
-                const [summaryData, timelineData, breakdownData, deploymentsData] = await Promise.all([
+                const [summaryData, timelineData, breakdownData] = await Promise.all([
                     getCostSummary(),
                     getCostTimeline(30),
-                    getCostBreakdown(),
-                    getDeployments()
+                    getCostBreakdown()
                 ]);
                 setSummary(summaryData);
                 setTimeline(timelineData);
                 setBreakdown(breakdownData);
-                setDeployments(deploymentsData);
             } catch (error) {
                 console.error("Error fetching cost data:", error);
             } finally {
@@ -55,15 +51,8 @@ export default function CostsPage() {
     // Export to CSV
     const exportToCSV = () => {
         const csvRows = [
-            ["Date", "Deployment", "GPU Type", "Provider", "Status", "Cost (Estimated)"],
-            ...deployments.map(d => [
-                new Date(d.created_at || "").toLocaleDateString(),
-                d.name,
-                d.gpu_type,
-                d.provider,
-                d.status,
-                "$0.00" // Placeholder - would calculate based on uptime
-            ])
+            ["Date", "Recorded Cost (USD)"],
+            ...timeline.map(point => [point.date, point.cost.toFixed(2)])
         ];
         const csvContent = csvRows.map(row => row.join(",")).join("\n");
         const blob = new Blob([csvContent], { type: "text/csv" });
@@ -375,14 +364,14 @@ export default function CostsPage() {
                         <div>
                             <CardTitle>Cost History</CardTitle>
                             <CardDescription>
-                                Detailed breakdown of your deployments
+                                Recorded daily usage costs for the last 30 days
                             </CardDescription>
                         </div>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={exportToCSV}
-                            disabled={deployments.length === 0}
+                            disabled={timeline.length === 0}
                         >
                             <Download className="h-4 w-4 mr-2" />
                             Export CSV
@@ -392,9 +381,9 @@ export default function CostsPage() {
                 <CardContent>
                     {loading ? (
                         <Skeleton className="h-[200px] w-full" />
-                    ) : deployments.length === 0 ? (
+                    ) : timeline.length === 0 ? (
                         <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                            No deployments yet. Create a deployment to start tracking costs.
+                            No recorded cost data is available yet.
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -402,42 +391,20 @@ export default function CostsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Date</TableHead>
-                                        <TableHead>Deployment</TableHead>
-                                        <TableHead>GPU Type</TableHead>
-                                        <TableHead>Provider</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Est. Cost</TableHead>
+                                        <TableHead className="text-right">Recorded Cost (USD)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {deployments.slice(0, 10).map((deployment) => (
-                                        <TableRow key={deployment.id}>
-                                            <TableCell className="text-sm">
-                                                {new Date(deployment.created_at || "").toLocaleDateString()}
-                                            </TableCell>
-                                            <TableCell className="font-medium">{deployment.name}</TableCell>
-                                            <TableCell>{deployment.gpu_type}</TableCell>
-                                            <TableCell className="capitalize">{deployment.provider}</TableCell>
-                                            <TableCell>
-                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${deployment.status === 'running' ? 'bg-green-500/10 text-green-600' :
-                                                    deployment.status === 'stopped' ? 'bg-gray-500/10 text-gray-600' :
-                                                        'bg-yellow-500/10 text-yellow-600'
-                                                    }`}>
-                                                    {deployment.status}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                $0.00
+                                    {timeline.map((point) => (
+                                        <TableRow key={point.date}>
+                                            <TableCell className="text-sm">{point.date}</TableCell>
+                                            <TableCell className="text-right font-mono">
+                                                ${point.cost.toFixed(2)}
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
                             </Table>
-                            {deployments.length > 10 && (
-                                <p className="text-sm text-muted-foreground text-center mt-4">
-                                    Showing 10 of {deployments.length} deployments. Export CSV for full history.
-                                </p>
-                            )}
                         </div>
                     )}
                 </CardContent>

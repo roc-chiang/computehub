@@ -7,6 +7,7 @@ from datetime import datetime
 from app.core.db import get_session
 from app.core.models import Provider, ProviderType
 from app.api.v1.audit import create_audit_log
+from app.core.encryption import encrypt_value
 
 router = APIRouter()
 
@@ -38,7 +39,6 @@ class ProviderResponse(BaseModel):
     type: ProviderType
     is_enabled: bool
     display_name: Optional[str]
-    api_key: Optional[str]  # Include for editing, will be masked in frontend
     weight: int
     created_at: datetime
     updated_at: datetime
@@ -47,7 +47,7 @@ class ProviderResponse(BaseModel):
 # CRUD Endpoints
 # ============================================================================
 
-@router.get("/providers", response_model=List[Provider])
+@router.get("/providers", response_model=List[ProviderResponse])
 async def list_providers(
     session: Session = Depends(get_session)
 ):
@@ -55,7 +55,7 @@ async def list_providers(
     providers = session.exec(select(Provider)).all()
     return providers
 
-@router.get("/providers/{provider_id}", response_model=Provider)
+@router.get("/providers/{provider_id}", response_model=ProviderResponse)
 async def get_provider(
     provider_id: int,
     session: Session = Depends(get_session)
@@ -66,7 +66,7 @@ async def get_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
     return provider
 
-@router.post("/providers", response_model=Provider)
+@router.post("/providers", response_model=ProviderResponse)
 async def create_provider(
     provider_data: ProviderCreate,
     session: Session = Depends(get_session)
@@ -79,7 +79,10 @@ async def create_provider(
     if existing:
         raise HTTPException(status_code=400, detail="Provider with this name already exists")
     
-    provider = Provider(**provider_data.model_dump())
+    create_data = provider_data.model_dump()
+    if create_data.get("api_key"):
+        create_data["api_key"] = encrypt_value(create_data["api_key"])
+    provider = Provider(**create_data)
     session.add(provider)
     session.commit()
     session.refresh(provider)
@@ -99,7 +102,7 @@ async def create_provider(
     
     return provider
 
-@router.patch("/providers/{provider_id}", response_model=Provider)
+@router.patch("/providers/{provider_id}", response_model=ProviderResponse)
 async def update_provider(
     provider_id: int,
     provider_data: ProviderUpdate,
@@ -112,6 +115,8 @@ async def update_provider(
     
     # Update fields
     update_data = provider_data.model_dump(exclude_unset=True)
+    if update_data.get("api_key"):
+        update_data["api_key"] = encrypt_value(update_data["api_key"])
     for key, value in update_data.items():
         setattr(provider, key, value)
     

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     Table,
@@ -44,7 +44,7 @@ export default function UsersPage() {
     const [editPlan, setEditPlan] = useState("");
     const { toast } = useToast();
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getUsers({
@@ -62,11 +62,11 @@ export default function UsersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [planFilter, search, toast]);
 
     useEffect(() => {
         fetchUsers();
-    }, [search, planFilter]);
+    }, [fetchUsers]);
 
     const handleViewDetails = async (userId: number) => {
         try {
@@ -122,6 +122,16 @@ export default function UsersPage() {
                 description: "Failed to disable user",
                 variant: "destructive",
             });
+        }
+    };
+
+    const handleEnableUser = async (userId: number) => {
+        try {
+            await enableUser(userId);
+            toast({ title: "Success", description: "User enabled successfully" });
+            fetchUsers();
+        } catch {
+            toast({ title: "Error", description: "Failed to enable user", variant: "destructive" });
         }
     };
 
@@ -235,6 +245,18 @@ export default function UsersPage() {
                                                         onClick={() => handleEditPlan(user)}
                                                     >
                                                         <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title={user.is_active ? "Disable user" : "Enable user"}
+                                                        onClick={() => user.is_active
+                                                            ? handleDisableUser(user.id)
+                                                            : handleEnableUser(user.id)}
+                                                    >
+                                                        {user.is_active
+                                                            ? <Ban className="h-4 w-4 text-destructive" />
+                                                            : <CheckCircle className="h-4 w-4 text-green-600" />}
                                                     </Button>
                                                 </div>
                                             </TableCell>

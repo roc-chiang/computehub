@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, func, or_
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.db import get_session
 from app.core.models import (
@@ -10,6 +10,7 @@ from app.core.models import (
     TicketStatus, TicketPriority, TicketCategory
 )
 from app.api.v1.audit import create_audit_log
+from app.core.auth import require_admin
 
 router = APIRouter()
 
@@ -72,7 +73,7 @@ class TicketUpdateRequest(BaseModel):
     assigned_to: Optional[str] = None
 
 class ReplyRequest(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=10000)
 
 # ============================================================================
 # Admin Endpoints
@@ -95,9 +96,18 @@ async def get_ticket_stats(session: Session = Depends(get_session)):
         select(func.count(SupportTicket.id)).where(SupportTicket.status == TicketStatus.CLOSED)
     ).one()
     
-    # Calculate average response time (simplified - time to first reply)
-    # TODO: Implement proper response time calculation
-    avg_response_time = None
+    tickets = session.exec(select(SupportTicket)).all()
+    response_times = []
+    for ticket in tickets:
+        first_admin_reply = session.exec(
+            select(TicketReply)
+            .where(TicketReply.ticket_id == ticket.id, TicketReply.is_admin == True)
+            .order_by(TicketReply.created_at.asc())
+            .limit(1)
+        ).first()
+        if first_admin_reply:
+            response_times.append((first_admin_reply.created_at - ticket.created_at).total_seconds() / 3600)
+    avg_response_time = sum(response_times) / len(response_times) if response_times else None
     
     return TicketStats(
         total=total,
@@ -215,7 +225,8 @@ async def get_ticket_detail(
 async def update_ticket(
     ticket_id: int,
     update: TicketUpdateRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_admin),
 ):
     """Update ticket status, priority, or assignment."""
     ticket = session.get(SupportTicket, ticket_id)
@@ -258,8 +269,8 @@ async def update_ticket(
             resource_id=str(ticket.id),
             description=f"Updated ticket #{ticket.id}",
             details=changes,
-            user_id="admin",  # TODO: Get from auth
-            user_email="admin@computehub.com",
+            user_id=admin.clerk_id or str(admin.id),
+            user_email=admin.email,
             is_admin=True,
             status="success"
         )
@@ -301,7 +312,8 @@ async def update_ticket(
 async def reply_to_ticket(
     ticket_id: int,
     reply: ReplyRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_admin),
 ):
     """Admin reply to a ticket."""
     ticket = session.get(SupportTicket, ticket_id)
@@ -311,8 +323,8 @@ async def reply_to_ticket(
     # Create reply
     ticket_reply = TicketReply(
         ticket_id=ticket_id,
-        author_id="admin",  # TODO: Get from auth
-        author_email="admin@computehub.com",
+        author_id=admin.clerk_id or str(admin.id),
+        author_email=admin.email,
         is_admin=True,
         message=reply.message
     )
@@ -334,8 +346,8 @@ async def reply_to_ticket(
         resource_id=str(ticket_reply.id),
         description=f"Admin replied to ticket #{ticket_id}",
         details={"ticket_id": ticket_id, "message_length": len(reply.message)},
-        user_id="admin",
-        user_email="admin@computehub.com",
+        user_id=admin.clerk_id or str(admin.id),
+        user_email=admin.email,
         is_admin=True,
         status="success"
     )

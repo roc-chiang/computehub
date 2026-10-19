@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,11 +53,7 @@ export default function MyTicketsPage() {
 
     const { toast } = useToast();
 
-    useEffect(() => {
-        fetchTickets();
-    }, []);
-
-    const fetchTickets = async () => {
+    const fetchTickets = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getMyTickets();
@@ -71,7 +67,11 @@ export default function MyTicketsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
+
+    useEffect(() => {
+        fetchTickets();
+    }, [fetchTickets]);
 
     const handleCreateTicket = async () => {
         if (!subject.trim() || !message.trim()) {

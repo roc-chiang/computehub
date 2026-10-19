@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -28,13 +28,7 @@ export default function GeneralSettingsPage() {
         theme: "light",
     });
 
-    useEffect(() => {
-        if (isLoaded && isSignedIn) {
-            fetchProfile();
-        }
-    }, [isLoaded, isSignedIn]);
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         setLoading(true);
         try {
             const token = await getToken();
@@ -51,7 +45,13 @@ export default function GeneralSettingsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken, toast]);
+
+    useEffect(() => {
+        if (isLoaded && isSignedIn) {
+            fetchProfile();
+        }
+    }, [fetchProfile, isLoaded, isSignedIn]);
 
     const handleSavePreferences = async () => {
         setSaving(true);

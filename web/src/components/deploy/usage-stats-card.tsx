@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDeploymentUsageStats, type UsageStats } from "@/lib/api";
 import { Clock, DollarSign, Zap, TrendingUp } from "lucide-react";
@@ -14,7 +14,7 @@ export function UsageStatsCard({ deploymentId }: UsageStatsCardProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         try {
             const data = await getDeploymentUsageStats(deploymentId);
             setStats(data);
@@ -24,21 +24,21 @@ export function UsageStatsCard({ deploymentId }: UsageStatsCardProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [deploymentId]);
 
     useEffect(() => {
         fetchStats();
         // Refresh every 30 seconds
-        const interval = setInterval(fetchStats, 30000);
+        const interval = setInterval(() => void fetchStats(), 30000);
         return () => clearInterval(interval);
-    }, [deploymentId]);
+    }, [fetchStats]);
 
     if (loading) {
         return (
             <Card>
                 <CardHeader>
                     <CardTitle>Usage & Cost</CardTitle>
-                    <CardDescription>GPU usage time and cost estimation</CardDescription>
+                    <CardDescription>Recorded GPU usage and cost</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="animate-pulse space-y-3">
@@ -81,7 +81,7 @@ export function UsageStatsCard({ deploymentId }: UsageStatsCardProps) {
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Usage & Cost
                 </CardTitle>
-                <CardDescription>Real-time GPU usage and cost estimation</CardDescription>
+                <CardDescription>Recorded GPU usage and cost</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-2 gap-4">
@@ -115,9 +115,13 @@ export function UsageStatsCard({ deploymentId }: UsageStatsCardProps) {
                             <DollarSign className="h-4 w-4" />
                             Cost/Hour
                         </div>
-                        <p className="text-2xl font-bold">${stats.cost_per_hour.toFixed(2)}</p>
+                        <p className="text-2xl font-bold">
+                            {stats.cost_per_hour === null ? "No data" : `$${stats.cost_per_hour.toFixed(2)}`}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                            ${stats.cost_per_gpu_hour.toFixed(2)} per GPU
+                            {stats.cost_per_gpu_hour === null
+                                ? "Awaiting a usage record"
+                                : `$${stats.cost_per_gpu_hour.toFixed(2)} per GPU`}
                         </p>
                     </div>
 
@@ -128,10 +132,10 @@ export function UsageStatsCard({ deploymentId }: UsageStatsCardProps) {
                             Total Cost
                         </div>
                         <p className="text-2xl font-bold text-primary">
-                            ${stats.estimated_cost_usd.toFixed(2)}
+                            ${stats.recorded_cost_usd.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            Estimated
+                            Recorded
                         </p>
                     </div>
                 </div>
@@ -139,7 +143,7 @@ export function UsageStatsCard({ deploymentId }: UsageStatsCardProps) {
                 {/* Info Banner */}
                 <div className="mt-4 p-3 bg-muted rounded-lg">
                     <p className="text-xs text-muted-foreground">
-                        💡 Costs are estimated based on current GPU pricing. Actual costs may vary.
+                        Costs shown here come from recorded usage data.
                         {stats.status === "running" && " Updates every 30 seconds."}
                     </p>
                 </div>

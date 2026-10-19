@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Info, DollarSign } from "lucide-react";
@@ -17,10 +16,6 @@ export function CostEstimator({ gpuType, provider }: CostEstimatorProps) {
     const [pricePerHour, setPricePerHour] = useState<number | null>(null);
     const [providerDisplayName, setProviderDisplayName] = useState<string>("");
     const [loading, setLoading] = useState(true);
-
-    // Service fee configuration (TODO: get from user settings)
-    const SERVICE_FEE_RATE = 0.07; // 7%
-    const SERVICE_FEE_ENABLED = true;
 
     useEffect(() => {
         const fetchPrice = async () => {
@@ -89,8 +84,7 @@ export function CostEstimator({ gpuType, provider }: CostEstimatorProps) {
 
     // Calculate costs
     const baseCost = pricePerHour;
-    const serviceFee = SERVICE_FEE_ENABLED ? baseCost * SERVICE_FEE_RATE : 0;
-    const totalCostPerHour = baseCost + serviceFee;
+    const totalCostPerHour = baseCost;
 
     const dailyCost = totalCostPerHour * 24;
     const monthlyCost = totalCostPerHour * 24 * 30;
@@ -119,19 +113,6 @@ export function CostEstimator({ gpuType, provider }: CostEstimatorProps) {
                         <span className="font-mono">${baseCost.toFixed(4)}/h</span>
                     </div>
 
-                    {SERVICE_FEE_ENABLED && (
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">
-                                Service Fee ({(SERVICE_FEE_RATE * 100).toFixed(0)}%)
-                            </span>
-                            <span className="font-mono text-blue-500">
-                                +${serviceFee.toFixed(4)}/h
-                            </span>
-                        </div>
-                    )}
-
-                    <Separator className="my-2" />
-
                     <div className="flex items-center justify-between font-semibold">
                         <span>Hourly Total</span>
                         <span className="font-mono text-lg">
@@ -152,16 +133,6 @@ export function CostEstimator({ gpuType, provider }: CostEstimatorProps) {
                     </div>
                 </div>
 
-                {/* Service Fee Notice */}
-                {SERVICE_FEE_ENABLED && (
-                    <Alert className="border-blue-500/20 bg-blue-500/10">
-                        <Info className="h-3 w-3 text-blue-500" />
-                        <AlertDescription className="text-xs">
-                            Service fee covers smart scheduling & auto-recovery.
-                            Can be disabled in settings.
-                        </AlertDescription>
-                    </Alert>
-                )}
             </CardContent>
         </Card>
     );

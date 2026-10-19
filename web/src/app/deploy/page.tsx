@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, RefreshCw, Play, Square, Trash2, CheckSquare } from "lucide-react";
 import { getDeployments, deleteDeployment, type Deployment } from "@/lib/api";
@@ -36,22 +36,19 @@ export default function Dashboard() {
     const [batchAction, setBatchAction] = useState<"start" | "stop" | "delete" | null>(null);
     const [batchLoading, setBatchLoading] = useState(false);
     const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-    const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+    const { getToken, isLoaded, isSignedIn } = useAuth();
     const { toast } = useToast();
     const { license } = useLicense();
 
-    console.log(`[Dashboard] Auth State: Loaded=${isLoaded}, SignedIn=${isSignedIn}, User=${userId}`);
 
-    const fetchDeployments = async () => {
+    const fetchDeployments = useCallback(async () => {
         if (!isLoaded || !isSignedIn) {
-            console.log("[Dashboard] Not ready to fetch.");
             return;
         }
 
         try {
             const token = await getToken();
             if (!token) {
-                console.log("[Dashboard] No token available");
                 setLoading(false);
                 return;
             }
@@ -70,20 +67,19 @@ export default function Dashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken, isLoaded, isSignedIn]);
 
     useEffect(() => {
         if (isLoaded) {
             if (isSignedIn) {
                 fetchDeployments();
-                const interval = setInterval(fetchDeployments, 5000);
+                const interval = setInterval(() => void fetchDeployments(), 5000);
                 return () => clearInterval(interval);
             } else {
                 setLoading(false);
-                console.log("[Dashboard] Not signed in, stopping load.");
             }
         }
-    }, [isLoaded, isSignedIn]);
+    }, [fetchDeployments, isLoaded, isSignedIn]);
 
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this deployment?")) return;

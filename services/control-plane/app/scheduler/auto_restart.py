@@ -133,10 +133,14 @@ class AutoRestartManager:
         
         try:
             # Get provider adapter
-            adapter = ProviderManager.get_adapter(deployment.provider, session)
+            adapter = ProviderManager.get_deployment_adapter(deployment, session)
             
             # Attempt restart
-            await adapter.restart_instance(deployment.instance_id)
+            if not deployment.instance_id:
+                raise ValueError("Deployment has no provider instance")
+            restarted = await adapter.restart_instance(deployment.instance_id)
+            if not restarted:
+                raise RuntimeError("Provider did not restart the instance")
             
             # Calculate execution time
             execution_time_ms = int((time.time() - start_time) * 1000)

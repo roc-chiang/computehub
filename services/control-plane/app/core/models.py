@@ -41,6 +41,7 @@ class User(SQLModel, table=True):
     clerk_id: Optional[str] = Field(default=None, index=True, unique=True)
     auth_provider: str = "email"  # email, google, github
     plan: str = "free"  # free, pro, enterprise
+    is_active: bool = Field(default=True, index=True)
     preferences_json: Optional[str] = None  # JSON string for user preferences
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -196,6 +197,7 @@ class SupportTicket(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     resolved_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
+    user_last_read_at: Optional[datetime] = None
 
 class TicketReply(SQLModel, table=True):
     __tablename__ = "ticketreply"
@@ -287,6 +289,18 @@ class NotificationSettings(SQLModel, table=True):
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TelegramBindToken(SQLModel, table=True):
+    """One-time token used to bind a Telegram chat to a user account."""
+    __tablename__ = "telegram_bind_token"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token_hash: str = Field(index=True, unique=True)
+    user_id: str = Field(index=True)
+    expires_at: datetime = Field(index=True)
+    used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class NotificationHistory(SQLModel, table=True):
     """Notification delivery history"""

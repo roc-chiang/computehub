@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ArrowLeft, Play, Square, RotateCw, Trash2 } from "lucide-react";
@@ -70,7 +70,7 @@ export default function DeploymentDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    const fetchDeployment = async () => {
+    const fetchDeployment = useCallback(async () => {
         if (!isLoaded || !isSignedIn) return;
 
         try {
@@ -83,15 +83,15 @@ export default function DeploymentDetailsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken, handleError, isLoaded, isSignedIn, params.id]);
 
     useEffect(() => {
         if (isLoaded && isSignedIn) {
             fetchDeployment();
-            const interval = setInterval(fetchDeployment, 5000);
+            const interval = setInterval(() => void fetchDeployment(), 5000);
             return () => clearInterval(interval);
         }
-    }, [isLoaded, isSignedIn, params.id]);
+    }, [fetchDeployment, isLoaded, isSignedIn]);
 
     const handleAction = async (action: string, fn: () => Promise<void>) => {
         setActionLoading(action);

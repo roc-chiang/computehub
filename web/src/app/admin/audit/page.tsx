@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Table,
     TableBody,
@@ -49,7 +49,7 @@ export default function AuditLogsPage() {
     const [detailsOpen, setDetailsOpen] = useState(false);
     const { toast } = useToast();
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [logsData, statsData] = await Promise.all([
@@ -73,11 +73,11 @@ export default function AuditLogsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [actionFilter, resourceFilter, search, statusFilter, toast]);
 
     useEffect(() => {
         fetchData();
-    }, [search, actionFilter, resourceFilter, statusFilter]);
+    }, [fetchData]);
 
     const handleViewDetails = async (logId: number) => {
         try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { API_BASE_URL } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export function ProviderBindings() {
 
     const supportedProviders = getSupportedProviders();
 
-    const fetchBindings = async () => {
+    const fetchBindings = useCallback(async () => {
         try {
             const token = await getToken();
             if (!token) {
@@ -56,11 +56,11 @@ export function ProviderBindings() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken]);
 
     useEffect(() => {
         fetchBindings();
-    }, []);
+    }, [fetchBindings]);
 
     const handleConnect = (providerName: string) => {
         setSelectedProvider(providerName);

@@ -43,7 +43,6 @@ const TRIGGER_TYPES = [
 const ACTION_TYPES = [
     { value: "shutdown", label: "Shutdown", description: "Stop the deployment" },
     { value: "restart", label: "Restart", description: "Restart the deployment" },
-    { value: "migrate", label: "Migrate", description: "Migrate to another provider" },
     { value: "notify", label: "Notify", description: "Send a notification" }
 ];
 
@@ -68,6 +67,8 @@ export function RuleBuilder() {
     const [costPeriod, setCostPeriod] = useState("daily");
     const [consecutiveFailures, setConsecutiveFailures] = useState("3");
     const [targetTime, setTargetTime] = useState("00:00");
+    const [priceChangePercentage, setPriceChangePercentage] = useState("10");
+    const [priceDirection, setPriceDirection] = useState("either");
 
     // Action config
     const [notifyTitle, setNotifyTitle] = useState("");
@@ -122,6 +123,11 @@ export function RuleBuilder() {
             case "health_check_failed":
                 return {
                     consecutive_failures: parseInt(consecutiveFailures)
+                };
+            case "price_change":
+                return {
+                    change_percentage: parseFloat(priceChangePercentage),
+                    direction: priceDirection
                 };
             case "time_based":
                 return {
@@ -254,6 +260,8 @@ export function RuleBuilder() {
         setCostPeriod("daily");
         setConsecutiveFailures("3");
         setTargetTime("00:00");
+        setPriceChangePercentage("10");
+        setPriceDirection("either");
         setNotifyTitle("");
         setNotifyMessage("");
     };
@@ -380,6 +388,32 @@ export function RuleBuilder() {
                                         </div>
                                     )}
 
+                                    {triggerType === "price_change" && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-2">
+                                                <Label>Change (%)</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0.01"
+                                                    step="0.01"
+                                                    value={priceChangePercentage}
+                                                    onChange={(e) => setPriceChangePercentage(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Direction</Label>
+                                                <Select value={priceDirection} onValueChange={setPriceDirection}>
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="either">Either</SelectItem>
+                                                        <SelectItem value="increase">Increase</SelectItem>
+                                                        <SelectItem value="decrease">Decrease</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {triggerType === "time_based" && (
                                         <div className="space-y-2">
                                             <Label>Time (HH:MM)</Label>
@@ -433,6 +467,7 @@ export function RuleBuilder() {
                                             </div>
                                         </>
                                     )}
+
                                 </div>
                             </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,13 +23,7 @@ export function AvailabilityChecker({ gpuType, providers, onProviderSelect }: Av
     const [alternatives, setAlternatives] = useState<GPUAlternative[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (gpuType) {
-            fetchAvailability();
-        }
-    }, [gpuType]);
-
-    const fetchAvailability = async () => {
+    const fetchAvailability = useCallback(async () => {
         setLoading(true);
         setError(null);
 
@@ -45,7 +39,13 @@ export function AvailabilityChecker({ gpuType, providers, onProviderSelect }: Av
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken, gpuType, providers]);
+
+    useEffect(() => {
+        if (gpuType) {
+            fetchAvailability();
+        }
+    }, [fetchAvailability, gpuType]);
 
     if (loading) {
         return (

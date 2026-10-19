@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Clock, RefreshCw, StopCircle, Zap } from "lucide-react";
-import { getHeaders } from "@/lib/api";
+import { API_BASE_URL, getHeaders } from "@/lib/api";
 
 interface AutomationLogsProps {
     deploymentId: number;
@@ -27,14 +27,10 @@ export function AutomationLogs({ deploymentId }: AutomationLogsProps) {
     const [logs, setLogs] = useState<AutomationLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        fetchLogs();
-    }, [deploymentId]);
-
-    const fetchLogs = async () => {
+    const fetchLogs = useCallback(async () => {
         try {
             const response = await fetch(
-                `/api/v1/automation/logs?deployment_id=${deploymentId}&limit=50`,
+                `${API_BASE_URL}/automation/logs?deployment_id=${deploymentId}&limit=50`,
                 { headers: getHeaders() }
             );
 
@@ -47,7 +43,11 @@ export function AutomationLogs({ deploymentId }: AutomationLogsProps) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [deploymentId]);
+
+    useEffect(() => {
+        fetchLogs();
+    }, [fetchLogs]);
 
     const getActionIcon = (action: string) => {
         switch (action) {

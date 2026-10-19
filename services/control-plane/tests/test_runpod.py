@@ -2,16 +2,9 @@
 测试 RunPod 适配器
 运行方式: python tests/test_runpod.py
 """
-import asyncio
-import sys
-from pathlib import Path
-
-# 添加父目录到 Python 路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from app.adapters.runpod_adapter import RunPodAdapter
 
-async def test_runpod():
+async def run_manual_runpod_test():
     print("=" * 60)
     print("RunPod 适配器测试")
     print("=" * 60)
@@ -66,4 +59,5 @@ async def test_runpod():
     print("=" * 60)
 
 if __name__ == "__main__":
-    asyncio.run(test_runpod())
+    import asyncio
+    asyncio.run(run_manual_runpod_test())

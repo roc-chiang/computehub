@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
 interface LicenseStatus {
@@ -25,7 +25,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     const [license, setLicense] = useState<LicenseStatus>({ isProEnabled: false });
     const [loading, setLoading] = useState(true);
 
-    const refreshLicense = async () => {
+    const refreshLicense = useCallback(async () => {
         try {
             if (!isLoaded) {
                 setLoading(true);
@@ -57,7 +57,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getToken, isLoaded]);
 
     const activateLicense = async (licenseKey: string): Promise<{ success: boolean; message: string }> => {
         try {
@@ -121,7 +121,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
         if (isLoaded) {
             refreshLicense();
         }
-    }, [isLoaded]);
+    }, [isLoaded, refreshLicense]);
 
     return (
         <LicenseContext.Provider value={{ license, loading, refreshLicense, activateLicense, deactivateLicense }}>

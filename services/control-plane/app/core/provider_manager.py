@@ -4,10 +4,51 @@ from app.adapters.base import ProviderAdapter
 from app.adapters.local_adapter import LocalAdapter
 from app.adapters.runpod_adapter import RunPodAdapter
 from app.adapters.vast_adapter import VastAdapter
-from app.core.models import ProviderType, Provider
+from app.core.models import Deployment, ProviderType, Provider, User, UserProviderBinding
+from app.core.encryption import decrypt_value, get_encryption
 
 class ProviderManager:
     _adapters = {}
+
+    @classmethod
+    def get_deployment_adapter(cls, deployment: Deployment, session: Session) -> ProviderAdapter:
+        if deployment.provider == ProviderType.LOCAL:
+            return cls.get_adapter(deployment.provider, session)
+
+        owner = session.get(User, deployment.user_id)
+        if not owner or not owner.clerk_id:
+            raise ValueError("Deployment owner is not connected to an authentication account")
+
+        binding = session.exec(
+            select(UserProviderBinding).where(
+                UserProviderBinding.user_id == owner.clerk_id,
+                UserProviderBinding.provider_type == deployment.provider,
+                UserProviderBinding.is_active == True,
+            )
+        ).first()
+        if not binding:
+            raise ValueError(f"No active {deployment.provider.value} connection for deployment owner")
+
+        api_key = get_encryption().decrypt(binding.api_key_encrypted)
+        return cls.get_adapter(deployment.provider, session, user_api_key=api_key)
+
+    @classmethod
+    def get_user_adapter(cls, user: User, provider_type: ProviderType, session: Session) -> ProviderAdapter:
+        if provider_type == ProviderType.LOCAL:
+            return cls.get_adapter(provider_type, session)
+        if not user.clerk_id:
+            raise ValueError("User is not connected to an authentication account")
+        binding = session.exec(
+            select(UserProviderBinding).where(
+                UserProviderBinding.user_id == user.clerk_id,
+                UserProviderBinding.provider_type == provider_type,
+                UserProviderBinding.is_active == True,
+            )
+        ).first()
+        if not binding:
+            raise ValueError(f"No active {provider_type.value} connection for user")
+        api_key = get_encryption().decrypt(binding.api_key_encrypted)
+        return cls.get_adapter(provider_type, session, user_api_key=api_key)
 
     @classmethod
     def get_adapter(cls, provider_type: str, session: Optional[Session] = None, user_api_key: Optional[str] = None) -> ProviderAdapter:
@@ -51,15 +92,16 @@ class ProviderManager:
                 ).first()
             
             if provider_config:
+                api_key = decrypt_value(provider_config.api_key) if provider_config.api_key else None
                 # Dynamically instantiate adapter with DB config
                 if provider_config.type == ProviderType.RUNPOD:
                     return RunPodAdapter(
-                        api_key=provider_config.api_key,
+                        api_key=api_key,
                         config=None 
                     )
                 elif provider_config.type == ProviderType.VAST:
                     return VastAdapter(
-                        api_key=provider_config.api_key,
+                        api_key=api_key,
                         config=None
                     )
                 # Add other types here

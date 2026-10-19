@@ -234,8 +234,8 @@ async def get_template(
     if template.env_vars_json:
         try:
             env_vars = json.loads(template.env_vars_json)
-        except:
-            pass
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=500, detail="Stored template environment variables are invalid") from exc
     
     return TemplateDetailResponse(
         id=template.id,

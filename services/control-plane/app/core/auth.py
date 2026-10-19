@@ -3,12 +3,15 @@ import jwt
 import requests
 import os
 from jwt.algorithms import RSAAlgorithm
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
-from app.core.models import SystemSetting
+from app.core.db import get_session
+from app.core.models import SystemSetting, User
 
 # Cache for JWKS keys to avoid fetching on every request
 _jwks_cache = {}
+security = HTTPBearer()
 
 def get_clerk_issuer() -> str:
     """Get Clerk issuer URL from environment variable"""
@@ -38,8 +41,6 @@ def get_clerk_issuer() -> str:
 def verify_token(token: str, session: Session) -> dict:
     issuer = get_clerk_issuer()
     jwks_url = f"{issuer}/.well-known/jwks.json"
-    using_fallback = False
-    
     try:
         # Fetch JWKS if not cached or force refresh on failure
         # For simplicity in this logic, we'll try to use cache, if fail, fetch again
@@ -82,8 +83,6 @@ def verify_token(token: str, session: Session) -> dict:
                                 fallback_key = f"-----BEGIN PUBLIC KEY-----\n{body}\n-----END PUBLIC KEY-----"
                     
                     public_key = fallback_key.replace("\\n", "\n") # Handle literal \n chars too
-                    using_fallback = True
-                    
                 else:
                     raise jwks_error
 
@@ -91,17 +90,17 @@ def verify_token(token: str, session: Session) -> dict:
                  raise Exception("Public key not found in JWKS and no fallback key provided")
 
         # Decode and verify
-        decode_options = {"verify_aud": False}
-        if using_fallback:
-            # When using fallback key (manual override), we trust the key itself
-            # and might not match the issuer exactly if dev/prod mix
-            decode_options["verify_iss"] = False
+        audience = os.getenv("CLERK_AUDIENCE")
+        if not audience and os.getenv("ENVIRONMENT", "development") == "production":
+            raise RuntimeError("CLERK_AUDIENCE is required in production")
+        decode_options = {"verify_aud": bool(audience)}
             
         payload = jwt.decode(
             token,
             public_key,
             algorithms=["RS256"],
-            issuer=issuer if not using_fallback else None,
+            issuer=issuer,
+            audience=audience,
             options=decode_options
         )
         
@@ -129,3 +128,50 @@ def get_current_user_id(token: str, session: Session) -> str:
             detail="User ID not found in token"
         )
     return user_id
+
+
+def _get_or_create_user(payload: dict, session: Session) -> User:
+    clerk_id = payload.get("sub")
+    if not clerk_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token")
+
+    user = session.exec(select(User).where(User.clerk_id == clerk_id)).first()
+    if user:
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="User account is disabled")
+        return user
+
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Authenticated token does not include an email address")
+    user = session.exec(select(User).where(User.email == email)).first()
+    if user:
+        user.clerk_id = clerk_id
+        user.auth_provider = "clerk"
+    else:
+        user = User(email=email, clerk_id=clerk_id, auth_provider="clerk", plan="free")
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: Session = Depends(get_session),
+) -> User:
+    payload = verify_token(credentials.credentials, session)
+    return _get_or_create_user(payload, session)
+
+
+def require_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: Session = Depends(get_session),
+) -> User:
+    payload = verify_token(credentials.credentials, session)
+    metadata = payload.get("public_metadata") or payload.get("metadata") or {}
+    role = payload.get("role") or metadata.get("role")
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Administrator access required")
+    return _get_or_create_user(payload, session)

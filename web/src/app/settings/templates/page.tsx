@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -78,7 +78,7 @@ export default function TemplatesPage() {
     const { getToken, isLoaded, isSignedIn } = useAuth();
     const { toast } = useToast();
 
-    const fetchUserTemplates = async () => {
+    const fetchUserTemplates = useCallback(async () => {
         if (!isLoaded || !isSignedIn) {
             setLoading(false);
             return;
@@ -92,9 +92,9 @@ export default function TemplatesPage() {
         } catch (error) {
             console.error("Error fetching user templates:", error);
         }
-    };
+    }, [getToken, isLoaded, isSignedIn]);
 
-    const fetchOfficialTemplates = async () => {
+    const fetchOfficialTemplates = useCallback(async () => {
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
             const response = await fetch(`${API_URL}/api/v1/templates/official`);
@@ -107,12 +107,12 @@ export default function TemplatesPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchUserTemplates();
         fetchOfficialTemplates();
-    }, [isLoaded, isSignedIn, getToken]);
+    }, [fetchOfficialTemplates, fetchUserTemplates]);
 
     const handleDelete = async () => {
         if (!deleteId) return;

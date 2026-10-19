@@ -1,3 +1,5 @@
+import { API_BASE_URL, getHeaders } from "./api";
+
 export interface AuditLogItem {
     id: number;
     timestamp: string;
@@ -61,19 +63,19 @@ export async function getAuditLogs(params?: {
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
 
-    const response = await fetch(`/api/v1/admin/audit/logs?${queryParams}`);
+    const response = await fetch(`${API_BASE_URL}/admin/audit/logs?${queryParams}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch audit logs');
     return response.json();
 }
 
 export async function getAuditLogDetail(logId: number): Promise<AuditLogDetail> {
-    const response = await fetch(`/api/v1/admin/audit/logs/${logId}`);
+    const response = await fetch(`${API_BASE_URL}/admin/audit/logs/${logId}`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch audit log detail');
     return response.json();
 }
 
 export async function getAuditStats(): Promise<AuditStats> {
-    const response = await fetch('/api/v1/admin/audit/stats');
+    const response = await fetch(`${API_BASE_URL}/admin/audit/stats`, { headers: getHeaders() });
     if (!response.ok) throw new Error('Failed to fetch audit stats');
     return response.json();
 }

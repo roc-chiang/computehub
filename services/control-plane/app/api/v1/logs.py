@@ -49,19 +49,25 @@ async def get_deployment_logs(
         raise HTTPException(status_code=404, detail="Deployment not found")
     
     # Get provider adapter
-    adapter = ProviderManager.get_adapter(deployment.provider, session)
+    if not deployment.instance_id:
+        raise HTTPException(status_code=400, detail="Deployment has no provider instance")
+    adapter = ProviderManager.get_deployment_adapter(deployment, session)
     
-    if not follow:
-        # Return static logs
+    try:
         logs = await adapter.get_logs(deployment.instance_id, lines)
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Provider logs are unavailable") from exc
+
+    if not follow:
         return {"logs": logs}
     
     # Stream logs with SSE
     async def log_stream():
         try:
             # Send initial logs
-            initial_logs = await adapter.get_logs(deployment.instance_id, lines)
-            for log in initial_logs:
+            for log in logs:
                 yield f"data: {json.dumps({'line': log, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
             
             # Stream new logs

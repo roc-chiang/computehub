@@ -36,7 +36,6 @@ export default function DashboardPage() {
     const { license } = useLicense();
 
     useEffect(() => {
-        console.log('[Dashboard] Auth State: Loaded=' + isLoaded + ', SignedIn=' + isSignedIn + ', User=' + user?.id);
 
         const fetchData = async () => {
             if (!isLoaded) {

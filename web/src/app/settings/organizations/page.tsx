@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { Plus, Users, FolderKanban, Settings } from "lucide-react";
@@ -18,6 +18,17 @@ export default function OrganizationsPage() {
     const router = useRouter();
     const { getToken } = useAuth();
 
+    const loadOrganizations = useCallback(async () => {
+        try {
+            const orgs = await getOrganizations();
+            setOrganizations(orgs);
+        } catch (error) {
+            console.error("Failed to load organizations:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         const initAuth = async () => {
             const token = await getToken();
@@ -29,18 +40,7 @@ export default function OrganizationsPage() {
             }
         };
         initAuth();
-    }, []);
-
-    const loadOrganizations = async () => {
-        try {
-            const orgs = await getOrganizations();
-            setOrganizations(orgs);
-        } catch (error) {
-            console.error("Failed to load organizations:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [getToken, loadOrganizations]);
 
     const handleOrganizationCreated = () => {
         setCreateDialogOpen(false);

@@ -248,10 +248,10 @@ class VastAdapter(ProviderAdapter):
         """
         Get current price per hour for the given GPU type from Vast.ai.
         Uses the same search logic as create_instance to find cheapest available offer.
-        Falls back to static pricing if API call fails.
+        Returns None when live pricing is unavailable.
         """
         if not self.api_key:
-            return self._get_fallback_price(gpu_type)
+            return None
         
         # Map GPU type (same as in create_instance)
         vast_gpu_name = gpu_type.replace("RTX", "RTX ") if "RTX" in gpu_type and "RTX " not in gpu_type else gpu_type
@@ -274,8 +274,8 @@ class VastAdapter(ProviderAdapter):
                 search_res = await client.get(search_url, headers=self.headers)
                 
                 if not search_res.is_success:
-                    print(f"[VastAdapter] API call failed, using fallback pricing")
-                    return self._get_fallback_price(gpu_type)
+                    print("[VastAdapter] Pricing API call failed")
+                    return None
                 
                 offers = search_res.json().get("offers", [])
                 
@@ -285,33 +285,23 @@ class VastAdapter(ProviderAdapter):
                     query_str = urllib.parse.quote(json.dumps(query))
                     search_url = f"{self.api_url}/bundles?q={query_str}"
                     search_res = await client.get(search_url, headers=self.headers)
+                    if not search_res.is_success:
+                        print("[VastAdapter] Relaxed pricing API call failed")
+                        return None
                     offers = search_res.json().get("offers", [])
                 
                 if offers:
                     # Return the cheapest price (first one due to sort)
-                    return float(offers[0].get("dph_total", 0))
+                    price = offers[0].get("dph_total")
+                    if price is not None and float(price) > 0:
+                        return float(price)
                 
-                print(f"[VastAdapter] No offers found, using fallback pricing")
-                return self._get_fallback_price(gpu_type)
+                print("[VastAdapter] No priced offers found")
+                return None
                 
         except Exception as e:
-            print(f"[VastAdapter] Failed to get pricing: {e}, using fallback pricing")
-            return self._get_fallback_price(gpu_type)
-    
-    def _get_fallback_price(self, gpu_type: str) -> float:
-        """Fallback static pricing for common GPU types"""
-        fallback_prices = {
-            "RTX4090": 0.59,
-            "RTX 4090": 0.59,
-            "RTX3090": 0.39,
-            "RTX 3090": 0.39,
-            "A100": 1.69,
-            "A100_SXM": 1.69,
-            "H100": 3.79,
-            "A6000": 0.69,
-            "A5000": 0.49,
-        }
-        return fallback_prices.get(gpu_type, 0.45)  # Default to $0.45/hr
+            print(f"[VastAdapter] Failed to get pricing: {e}")
+            return None
     
     async def check_gpu_availability(self, gpu_type: str) -> Dict[str, Any]:
         """
@@ -388,30 +378,8 @@ class VastAdapter(ProviderAdapter):
         since: Optional[Any] = None
     ) -> list[str]:
         """Get container logs from Vast.ai instance."""
-        from datetime import datetime
-        import random
-        
-        # Vast.ai mock logs (similar to RunPod)
-        mock_logs = [
-            f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Container started",
-            f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] GPU initialized",
-            f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] Service ready",
-        ]
-        
-        if since:
-            return [f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] New log entry"]
-        
-        return mock_logs[-lines:]
+        raise NotImplementedError("Vast.ai log retrieval is not configured")
     
     async def get_metrics(self, instance_id: str) -> Dict[str, Any]:
         """Get performance metrics from Vast.ai instance."""
-        import random
-        
-        return {
-            "gpu_utilization": random.uniform(65, 90),
-            "gpu_memory_utilization": random.uniform(55, 80),
-            "cpu_utilization": random.uniform(25, 45),
-            "ram_utilization": random.uniform(35, 65),
-            "network_rx_bytes": random.randint(800000, 8000000),
-            "network_tx_bytes": random.randint(400000, 4000000)
-        }
+        raise NotImplementedError("Vast.ai metrics retrieval is not configured")

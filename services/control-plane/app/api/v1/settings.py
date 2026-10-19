@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.core.db import get_session
 from app.core.models import SystemSetting
+from app.core.encryption import encrypt_value
 from pydantic import BaseModel
 import json
 
@@ -184,7 +185,7 @@ async def get_all_settings(
     for setting in settings:
         value = setting.value
         # Mask secret values unless explicitly requested
-        if setting.is_secret and not include_secrets:
+        if setting.is_secret:
             value = "********"
         
         result.append(SettingItem(
@@ -209,7 +210,7 @@ async def get_setting(
         raise HTTPException(status_code=404, detail="Setting not found")
     
     value = setting.value
-    if setting.is_secret and not include_secret:
+    if setting.is_secret:
         value = "********"
     
     return SettingItem(
@@ -231,15 +232,19 @@ async def update_setting(
     
     if not setting:
         # Create new setting if it doesn't exist
+        default = DEFAULT_SETTINGS.get(key, {})
+        is_secret = bool(default.get("is_secret", False))
+        value = encrypt_value(update.value) if is_secret and update.value else update.value
         setting = SystemSetting(
             key=key,
-            value=update.value,
+            value=value,
             description=None,
-            is_secret=False
+            is_secret=is_secret
         )
         session.add(setting)
     else:
-        setting.value = update.value
+        if not (setting.is_secret and update.value == "********"):
+            setting.value = encrypt_value(update.value) if setting.is_secret and update.value else update.value
         session.add(setting)
     
     session.commit()
@@ -249,7 +254,7 @@ async def update_setting(
         "ok": True,
         "message": f"Setting '{key}' updated successfully",
         "key": setting.key,
-        "value": setting.value
+        "value": "********" if setting.is_secret else setting.value
     }
 
 
@@ -267,15 +272,19 @@ async def bulk_update_settings(
             setting = session.get(SystemSetting, key)
             
             if not setting:
+                default = DEFAULT_SETTINGS.get(key, {})
+                is_secret = bool(default.get("is_secret", False))
+                stored_value = encrypt_value(value) if is_secret and value else value
                 setting = SystemSetting(
                     key=key,
-                    value=value,
+                    value=stored_value,
                     description=None,
-                    is_secret=False
+                    is_secret=is_secret
                 )
                 session.add(setting)
             else:
-                setting.value = value
+                if not (setting.is_secret and value == "********"):
+                    setting.value = encrypt_value(value) if setting.is_secret and value else value
                 session.add(setting)
             
             updated.append(key)

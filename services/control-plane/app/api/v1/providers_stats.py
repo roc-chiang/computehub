@@ -1,11 +1,12 @@
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select
 from pydantic import BaseModel
 
 from app.core.db import get_session
 from app.core.models import Provider, Deployment, DeploymentStatus
+from app.core.automation_models import CostTracking
 
 router = APIRouter()
 
@@ -40,7 +41,7 @@ class ProviderStats(BaseModel):
 class PerformanceOverTime(BaseModel):
     date: str
     success_rate: float
-    avg_startup_time: float
+    avg_startup_time: Optional[float]
 
 class RecentError(BaseModel):
     deployment_id: int
@@ -51,7 +52,7 @@ class ProviderMetrics(BaseModel):
     provider_id: int
     provider_name: str
     success_rate: float
-    avg_startup_time_seconds: float
+    avg_startup_time_seconds: Optional[float]
     error_rate: float
     uptime_percentage: float
     recent_errors: List[RecentError]
@@ -93,20 +94,12 @@ async def get_provider_stats(
     total_deployments = len(deployments)
     active_deployments = len([d for d in deployments if d.status == DeploymentStatus.RUNNING])
     
-    # Calculate GPU hours and cost
-    total_gpu_hours = 0.0
-    total_cost = 0.0
-    for deployment in deployments:
-        if deployment.created_at:
-            # Calculate hours (using created_at to updated_at for stopped, or now for running)
-            if deployment.status == DeploymentStatus.STOPPED:
-                end_time = deployment.updated_at
-            else:
-                end_time = datetime.utcnow()
-            hours = (end_time - deployment.created_at).total_seconds() / 3600
-            total_gpu_hours += hours
-            # Simplified cost calculation (would use actual pricing in production)
-            total_cost += hours * 0.50  # $0.50 per GPU hour
+    deployment_ids = [deployment.id for deployment in deployments]
+    usage_records = session.exec(
+        select(CostTracking).where(CostTracking.deployment_id.in_(deployment_ids))
+    ).all() if deployment_ids else []
+    total_gpu_hours = sum(record.gpu_hours for record in usage_records)
+    total_cost = sum(record.cost_usd for record in usage_records)
     
     # Average deployment duration
     avg_duration = total_gpu_hours / total_deployments if total_deployments > 0 else 0.0
@@ -122,19 +115,12 @@ async def get_provider_stats(
     
     # GPU hours and cost by month (last 6 months)
     monthly_data: Dict[str, Dict[str, float]] = {}
-    for deployment in deployments:
-        if deployment.created_at:
-            month_key = deployment.created_at.strftime("%Y-%m")
-            if month_key not in monthly_data:
-                monthly_data[month_key] = {"hours": 0.0, "cost": 0.0}
-            
-            if deployment.status == DeploymentStatus.STOPPED:
-                end_time = deployment.updated_at
-            else:
-                end_time = datetime.utcnow()
-            hours = (end_time - deployment.created_at).total_seconds() / 3600
-            monthly_data[month_key]["hours"] += hours
-            monthly_data[month_key]["cost"] += hours * 0.50
+    for record in usage_records:
+        month_key = record.period_end.strftime("%Y-%m")
+        if month_key not in monthly_data:
+            monthly_data[month_key] = {"hours": 0.0, "cost": 0.0}
+        monthly_data[month_key]["hours"] += record.gpu_hours
+        monthly_data[month_key]["cost"] += record.cost_usd
     
     # Convert to list and sort
     gpu_hours_by_month = [
@@ -178,7 +164,7 @@ async def get_provider_metrics(
             provider_id=provider.id,
             provider_name=provider.name,
             success_rate=0.0,
-            avg_startup_time_seconds=0.0,
+            avg_startup_time_seconds=None,
             error_rate=0.0,
             uptime_percentage=0.0,
             recent_errors=[],
@@ -192,9 +178,6 @@ async def get_provider_metrics(
     # Calculate error rate
     error_count = len([d for d in deployments if d.status == DeploymentStatus.ERROR])
     error_rate = (error_count / total_deployments) * 100
-    
-    # Average startup time (simplified - would track actual startup time in production)
-    avg_startup_time = 45.0  # Placeholder
     
     # Uptime percentage (simplified)
     running_count = len([d for d in deployments if d.status == DeploymentStatus.RUNNING])
@@ -212,28 +195,15 @@ async def get_provider_metrics(
         for d in error_deployments[:5]
     ]
     
-    # Performance over time (last 7 days)
-    performance_over_time = []
-    for i in range(7):
-        date = datetime.utcnow() - timedelta(days=6-i)
-        # Simplified - would calculate actual metrics per day
-        performance_over_time.append(
-            PerformanceOverTime(
-                date=date.strftime("%Y-%m-%d"),
-                success_rate=success_rate,
-                avg_startup_time=avg_startup_time
-            )
-        )
-    
     return ProviderMetrics(
         provider_id=provider.id,
         provider_name=provider.name,
         success_rate=round(success_rate, 2),
-        avg_startup_time_seconds=avg_startup_time,
+        avg_startup_time_seconds=None,
         error_rate=round(error_rate, 2),
         uptime_percentage=round(uptime_percentage, 2),
         recent_errors=recent_errors,
-        performance_over_time=performance_over_time,
+        performance_over_time=[],
     )
 
 @router.get("/providers/summary", response_model=ProvidersSummary)
@@ -254,16 +224,11 @@ async def get_providers_summary(session: Session = Depends(get_session)):
         total_deployments = len(deployments)
         active_deployments = len([d for d in deployments if d.status == DeploymentStatus.RUNNING])
         
-        # Calculate GPU hours
-        total_gpu_hours = 0.0
-        for deployment in deployments:
-            if deployment.created_at:
-                if deployment.status == DeploymentStatus.STOPPED:
-                    end_time = deployment.updated_at
-                else:
-                    end_time = datetime.utcnow()
-                hours = (end_time - deployment.created_at).total_seconds() / 3600
-                total_gpu_hours += hours
+        deployment_ids = [deployment.id for deployment in deployments]
+        usage_records = session.exec(
+            select(CostTracking).where(CostTracking.deployment_id.in_(deployment_ids))
+        ).all() if deployment_ids else []
+        total_gpu_hours = sum(record.gpu_hours for record in usage_records)
         
         # Calculate success rate
         successful = len([d for d in deployments if d.status != DeploymentStatus.ERROR])

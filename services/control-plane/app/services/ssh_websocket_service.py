@@ -8,6 +8,7 @@ POS: Core service for WebSSH terminal functionality
 
 import asyncio
 import asyncssh
+import os
 from fastapi import WebSocket
 from typing import Optional, Dict
 import json
@@ -45,6 +46,10 @@ class SSHWebSocketBridge:
         try:
             print(f"[SSH] Connecting to {username}@{host}:{port} (timeout: {self.timeout}s)")
             
+            known_hosts = os.getenv("SSH_KNOWN_HOSTS")
+            if os.getenv("ENVIRONMENT", "development") == "production" and not known_hosts:
+                raise RuntimeError("SSH_KNOWN_HOSTS is required in production")
+
             # Connect to SSH server with timeout
             self.ssh_conn = await asyncio.wait_for(
                 asyncssh.connect(
@@ -52,8 +57,7 @@ class SSHWebSocketBridge:
                     port=port,
                     username=username,
                     password=password,
-                    known_hosts=None,  # Skip host key verification (for development)
-                    # In production, you should verify host keys
+                    known_hosts=known_hosts,
                 ),
                 timeout=self.timeout
             )

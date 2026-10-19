@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingDown, TrendingUp, Minus, DollarSign, ArrowRight } from "lucide-react";
-import { getHeaders } from "@/lib/api";
+import { API_BASE_URL, getHeaders } from "@/lib/api";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface PriceMonitorProps {
@@ -42,17 +42,11 @@ export function PriceMonitor({ deploymentId }: PriceMonitorProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [hours, setHours] = useState(168); // 7 days
 
-    useEffect(() => {
-        fetchPriceData();
-        const interval = setInterval(fetchPriceData, 3600000); // Refresh every hour
-        return () => clearInterval(interval);
-    }, [deploymentId, hours]);
-
-    const fetchPriceData = async () => {
+    const fetchPriceData = useCallback(async () => {
         try {
             // Fetch price history
             const historyResponse = await fetch(
-                `/api/v1/advanced-automation/price-history?deployment_id=${deploymentId}&hours=${hours}`,
+                `${API_BASE_URL}/advanced-automation/price-history?deployment_id=${deploymentId}&hours=${hours}`,
                 { headers: getHeaders() }
             );
 
@@ -63,7 +57,7 @@ export function PriceMonitor({ deploymentId }: PriceMonitorProps) {
 
             // Fetch price trends
             const trendResponse = await fetch(
-                `/api/v1/advanced-automation/price-trends?deployment_id=${deploymentId}&hours=${hours}`,
+                `${API_BASE_URL}/advanced-automation/price-trends?deployment_id=${deploymentId}&hours=${hours}`,
                 { headers: getHeaders() }
             );
 
@@ -74,7 +68,7 @@ export function PriceMonitor({ deploymentId }: PriceMonitorProps) {
 
             // Fetch cheaper alternatives
             const altResponse = await fetch(
-                `/api/v1/advanced-automation/cheaper-alternatives?deployment_id=${deploymentId}`,
+                `${API_BASE_URL}/advanced-automation/cheaper-alternatives?deployment_id=${deploymentId}`,
                 { headers: getHeaders() }
             );
 
@@ -87,7 +81,13 @@ export function PriceMonitor({ deploymentId }: PriceMonitorProps) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [deploymentId, hours]);
+
+    useEffect(() => {
+        fetchPriceData();
+        const interval = setInterval(() => void fetchPriceData(), 3600000);
+        return () => clearInterval(interval);
+    }, [fetchPriceData]);
 
     const getTrendIcon = (direction: string) => {
         switch (direction) {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, Eye, EyeOff, Terminal, ExternalLink, Check, AlertCircle } from "lucide-react";
+import { Copy, Terminal, ExternalLink, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -15,7 +15,6 @@ interface ConnectionGuideProps {
 }
 
 export function ConnectionGuide({ deployment }: ConnectionGuideProps) {
-    const [showPassword, setShowPassword] = useState(false);
     const [copiedField, setCopiedField] = useState<string | null>(null);
 
     const handleCopy = (text: string, field: string) => {
@@ -124,35 +123,6 @@ export function ConnectionGuide({ deployment }: ConnectionGuideProps) {
                                 </div>
                             </div>
 
-                            {deployment.ssh_password && (
-                                <div className="space-y-2">
-                                    <Label>Root Password</Label>
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <Input
-                                                readOnly
-                                                type={showPassword ? "text" : "password"}
-                                                value={deployment.ssh_password}
-                                                className="font-mono bg-muted"
-                                            />
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                        >
-                                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => handleCopy(deployment.ssh_password!, "password")}
-                                        >
-                                            {copiedField === "password" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>

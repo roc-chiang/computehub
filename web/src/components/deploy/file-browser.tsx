@@ -1,88 +1,117 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, ChevronLeft, File, Folder, Loader2, RefreshCw } from "lucide-react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Folder, File, Download, Upload, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FileItem, getDeploymentFiles } from "@/lib/api";
 
 interface FileBrowserProps {
     deploymentId: number;
 }
 
+function formatSize(value: string) {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes)) return value;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function FileBrowser({ deploymentId }: FileBrowserProps) {
-    // Mock file structure
-    const files = [
-        { name: "workspace", type: "folder", size: "-" },
-        { name: "models", type: "folder", size: "-" },
-        { name: "config.yaml", type: "file", size: "2.4 KB" },
-        { name: "requirements.txt", type: "file", size: "1.2 KB" },
-        { name: "app.py", type: "file", size: "8.5 KB" },
-    ];
+    const [path, setPath] = useState("/workspace");
+    const [files, setFiles] = useState<FileItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadFiles = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            setFiles(await getDeploymentFiles(deploymentId, path));
+        } catch (loadError) {
+            setFiles([]);
+            setError(loadError instanceof Error ? loadError.message : "Unable to load files");
+        } finally {
+            setLoading(false);
+        }
+    }, [deploymentId, path]);
+
+    useEffect(() => {
+        loadFiles();
+    }, [loadFiles]);
+
+    const openDirectory = (name: string) => {
+        setPath(`${path.replace(/\/$/, "")}/${name}`);
+    };
+
+    const goUp = () => {
+        if (path === "/workspace") return;
+        const parent = path.slice(0, path.lastIndexOf("/")) || "/workspace";
+        setPath(parent.startsWith("/workspace") ? parent : "/workspace");
+    };
 
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    <CardTitle>File Browser</CardTitle>
-                    <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-md">
-                        🚧 Under Development
-                    </span>
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <CardTitle>File Browser</CardTitle>
+                        <CardDescription>Read-only SFTP view of the deployment workspace</CardDescription>
+                    </div>
+                    <Button variant="outline" size="icon" onClick={loadFiles} disabled={loading} aria-label="Refresh files">
+                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    </Button>
                 </div>
-                <CardDescription>
-                    Browse and manage deployment files
-                </CardDescription>
             </CardHeader>
             <CardContent>
-                {/* Info Alert */}
-                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md flex gap-3">
-                    <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-blue-800 dark:text-blue-200">
-                        <p className="font-medium mb-1">File Access via SSH</p>
-                        <p>
-                            To browse and manage files, use the SSH connection string from the Overview tab.
-                            Full file browser functionality requires direct SSH/SFTP access to the instance.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Mock File List */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground border-b pb-2">
-                        <span>Name</span>
-                        <span>Size</span>
-                    </div>
-
-                    {files.map((file, index) => (
-                        <div
-                            key={index}
-                            className="flex items-center justify-between p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
-                        >
-                            <div className="flex items-center gap-2">
-                                {file.type === "folder" ? (
-                                    <Folder className="h-4 w-4 text-blue-500" />
-                                ) : (
-                                    <File className="h-4 w-4 text-gray-500" />
-                                )}
-                                <span className="text-sm">{file.name}</span>
-                            </div>
-                            <span className="text-sm text-muted-foreground">{file.size}</span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="mt-6 flex gap-2">
-                    <Button variant="outline" size="sm" disabled>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload File
+                <div className="mb-4 flex items-center gap-2 rounded-md border bg-muted/40 p-2">
+                    <Button variant="ghost" size="icon" onClick={goUp} disabled={path === "/workspace" || loading} aria-label="Parent directory">
+                        <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" disabled>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                    </Button>
+                    <span className="truncate font-mono text-sm">{path}</span>
                 </div>
+
+                {error && (
+                    <div className="mb-4 flex gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <span>{error}</span>
+                    </div>
+                )}
+
+                {loading ? (
+                    <div className="flex items-center justify-center py-10 text-muted-foreground">
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading files...
+                    </div>
+                ) : files.length === 0 && !error ? (
+                    <p className="py-10 text-center text-sm text-muted-foreground">This directory is empty.</p>
+                ) : (
+                    <div className="divide-y rounded-md border">
+                        {files.map((file) => (
+                            <button
+                                key={file.name}
+                                type="button"
+                                disabled={file.type !== "directory"}
+                                onClick={() => file.type === "directory" && openDirectory(file.name)}
+                                className="flex w-full items-center justify-between gap-4 p-3 text-left enabled:hover:bg-muted disabled:cursor-default"
+                            >
+                                <span className="flex min-w-0 items-center gap-2">
+                                    {file.type === "directory"
+                                        ? <Folder className="h-4 w-4 shrink-0 text-blue-500" />
+                                        : <File className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                                    <span className="truncate text-sm">{file.name}</span>
+                                </span>
+                                <span className="shrink-0 text-xs text-muted-foreground">
+                                    {file.type === "directory" ? "Directory" : formatSize(file.size)}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 <p className="mt-4 text-xs text-muted-foreground">
-                    Note: File operations are currently view-only. Use SSH for full file management.
+                    File modification and downloads remain disabled. Use the authenticated terminal for write operations.
                 </p>
             </CardContent>
         </Card>

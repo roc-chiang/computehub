@@ -3,10 +3,10 @@ import os
 
 # Load environment variables FIRST before any other imports
 load_dotenv()
-print(f"[STARTUP] ENCRYPTION_KEY loaded: {bool(os.getenv('ENCRYPTION_KEY'))}")
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from app.core.config import settings
+from app.core.auth import require_admin
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -44,9 +44,17 @@ Most endpoints require authentication via Clerk JWT token in the `Authorization`
     },
 )
 
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+if settings.ENVIRONMENT == "production" and (not cors_origins or "*" in cors_origins):
+    raise RuntimeError("CORS_ALLOWED_ORIGINS must contain explicit origins in production")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -165,6 +173,7 @@ from app.api.v1 import (
 
 # Public endpoints (no auth required)
 app.include_router(public_pricing.router, prefix="/api/v1", tags=["public"])
+app.include_router(admin.public_router, prefix="/api/v1/admin", tags=["public-config"])
 
 # User endpoints (auth required)
 app.include_router(user_providers.router, prefix="/api/v1", tags=["user-providers"])
@@ -180,7 +189,7 @@ app.include_router(terminal.router, prefix="/api/v1", tags=["terminal"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["organizations"])
 app.include_router(members.router, prefix="/api/v1", tags=["members"])
 app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
-app.include_router(license.router, prefix="/api/v1", tags=["license"])
+app.include_router(license.router, prefix="/api/v1", tags=["license"], dependencies=[Depends(require_admin)])
 
 # Protected endpoints
 app.include_router(deployments.router, prefix="/api/v1/deployments", tags=["deployments"])
@@ -191,14 +200,15 @@ app.include_router(advanced_automation.router, prefix="/api/v1", tags=["advanced
 app.include_router(rules.router, prefix="/api/v1", tags=["rules"])
 app.include_router(deployment_controls.router, prefix="/api/v1/deployments", tags=["deployment-controls"])
 app.include_router(pricing.router, prefix="/api/v1/pricing", tags=["pricing"])
-app.include_router(users.router, prefix="/api/v1/admin", tags=["admin-users"])
-app.include_router(deployments_admin.router, prefix="/api/v1/admin", tags=["admin-deployments"])
-app.include_router(admin_stats.router, prefix="/api/v1/admin", tags=["admin-stats"])
-app.include_router(audit.router, prefix="/api/v1/admin", tags=["admin-audit"])
-app.include_router(settings_router.router, prefix="/api/v1/admin", tags=["admin-settings"])
-app.include_router(tickets_admin.router, prefix="/api/v1/admin", tags=["admin-tickets"])
-app.include_router(providers_stats.router, prefix="/api/v1/admin", tags=["admin-providers-stats"])
-app.include_router(providers_crud.router, prefix="/api/v1/admin", tags=["admin-providers"])
+admin_dependencies = [Depends(require_admin)]
+app.include_router(users.router, prefix="/api/v1/admin", tags=["admin-users"], dependencies=admin_dependencies)
+app.include_router(deployments_admin.router, prefix="/api/v1/admin", tags=["admin-deployments"], dependencies=admin_dependencies)
+app.include_router(admin_stats.router, prefix="/api/v1/admin", tags=["admin-stats"], dependencies=admin_dependencies)
+app.include_router(audit.router, prefix="/api/v1/admin", tags=["admin-audit"], dependencies=admin_dependencies)
+app.include_router(settings_router.router, prefix="/api/v1/admin", tags=["admin-settings"], dependencies=admin_dependencies)
+app.include_router(tickets_admin.router, prefix="/api/v1/admin", tags=["admin-tickets"], dependencies=admin_dependencies)
+app.include_router(providers_stats.router, prefix="/api/v1/admin", tags=["admin-providers-stats"], dependencies=admin_dependencies)
+app.include_router(providers_crud.router, prefix="/api/v1/admin", tags=["admin-providers"], dependencies=admin_dependencies)
 app.include_router(tickets.router, prefix="/api/v1/tickets", tags=["tickets"])
-app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])  # Register admin last to avoid conflicts
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"], dependencies=admin_dependencies)  # Register admin last to avoid conflicts
 

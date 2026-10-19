@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { Plus, FolderKanban, Trash2, ExternalLink } from "lucide-react";
@@ -29,20 +29,7 @@ export function ProjectsList({ organizationId, currentUserRole }: ProjectsListPr
     const { toast } = useToast();
     const { getToken } = useAuth();
 
-    useEffect(() => {
-        const initAuth = async () => {
-            const token = await getToken();
-            if (token) {
-                setAuthToken(token);
-                loadProjects();
-            } else {
-                setLoading(false);
-            }
-        };
-        initAuth();
-    }, [organizationId, getToken]);
-
-    const loadProjects = async () => {
+    const loadProjects = useCallback(async () => {
         try {
             const data = await getProjects(organizationId);
             setProjects(data);
@@ -55,7 +42,20 @@ export function ProjectsList({ organizationId, currentUserRole }: ProjectsListPr
         } finally {
             setLoading(false);
         }
-    };
+    }, [organizationId, toast]);
+
+    useEffect(() => {
+        const initAuth = async () => {
+            const token = await getToken();
+            if (token) {
+                setAuthToken(token);
+                loadProjects();
+            } else {
+                setLoading(false);
+            }
+        };
+        initAuth();
+    }, [getToken, loadProjects]);
 
     const handleDeleteProject = async (projectId: number) => {
         if (!confirm("Are you sure? Deployments in this project will be orphaned.")) return;

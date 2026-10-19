@@ -42,8 +42,8 @@ class TelegramService:
             if setting.is_secret and setting.value:
                 try:
                     return decrypt_value(setting.value)
-                except:
-                    pass
+                except Exception:
+                    return None
             return setting.value
         
         # Fallback to environment variable
